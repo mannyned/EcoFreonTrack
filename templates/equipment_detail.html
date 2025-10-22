@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{{ equipment.equipment_id }} - Equipment Detail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-between align-center mb-3">
+    <h1>Equipment: {{ equipment.equipment_id }}</h1>
+    <div>
+        <a href="{{ url_for('equipment_edit', id=equipment.id) }}" class="btn btn-secondary">Edit Equipment</a>
+        <a href="{{ url_for('equipment_list') }}" class="btn btn-primary">Back to List</a>
+    </div>
+</div>
+
+<div class="compliance-status {% if compliant %}compliant{% else %}non-compliant{% endif %}">
+    <div class="status-icon">{% if compliant %}✓{% else %}⚠{% endif %}</div>
+    <div class="status-text">
+        <h3>{% if compliant %}Compliant{% else %}Non-Compliant{% endif %}</h3>
+        <p>Annual Leak Rate: {{ annual_leak_rate|round(2) }}% (Threshold: {{ equipment.leak_rate_threshold }}%)</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Equipment Information</h2>
+    <div class="form-row">
+        <div><strong>Equipment ID:</strong> {{ equipment.equipment_id }}</div>
+        <div><strong>Name:</strong> {{ equipment.name }}</div>
+        <div><strong>Type:</strong> {{ equipment.equipment_type }}</div>
+        <div><strong>Location:</strong> {{ equipment.location or 'N/A' }}</div>
+        <div><strong>Manufacturer:</strong> {{ equipment.manufacturer or 'N/A' }}</div>
+        <div><strong>Model:</strong> {{ equipment.model_number or 'N/A' }}</div>
+        <div><strong>Serial Number:</strong> {{ equipment.serial_number or 'N/A' }}</div>
+        <div><strong>Status:</strong> <span class="badge badge-{{ 'success' if equipment.status == 'Active' else 'secondary' }}">{{ equipment.status }}</span></div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Refrigerant Information</h2>
+    <div class="form-row">
+        <div><strong>Refrigerant Type:</strong> {{ equipment.refrigerant_type }}</div>
+        <div><strong>Refrigerant Name:</strong> {{ equipment.refrigerant_name }}</div>
+        <div><strong>Full Charge:</strong> {{ equipment.full_charge }} lbs</div>
+        <div><strong>Leak Rate Threshold:</strong> {{ equipment.leak_rate_threshold }}%</div>
+        <div><strong>Inspection Frequency:</strong> Every {{ equipment.inspection_frequency }} days</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="d-flex justify-between align-center mb-2">
+        <h2>Leak Inspections</h2>
+        <a href="{{ url_for('leak_inspection_add') }}" class="btn btn-success">Add Inspection</a>
+    </div>
+    {% if inspections %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Leak Detected</th>
+                <th>Current Charge</th>
+                <th>Leak Rate</th>
+                <th>Compliant</th>
+                <th>Technician</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inspection in inspections %}
+            <tr>
+                <td>{{ inspection.inspection_date }}</td>
+                <td>{{ inspection.inspection_type }}</td>
+                <td><span class="badge badge-{{ 'danger' if inspection.leak_detected else 'success' }}">{{ 'Yes' if inspection.leak_detected else 'No' }}</span></td>
+                <td>{{ inspection.current_charge or 'N/A' }} lbs</td>
+                <td>{{ inspection.annual_leak_rate|round(2) if inspection.annual_leak_rate else 'N/A' }}%</td>
+                <td><span class="badge badge-{{ 'success' if inspection.compliant else 'danger' }}">{{ 'Yes' if inspection.compliant else 'No' }}</span></td>
+                <td>{{ inspection.technician.name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No inspections recorded.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="d-flex justify-between align-center mb-2">
+        <h2>Service History</h2>
+        <a href="{{ url_for('service_log_add') }}" class="btn btn-success">Add Service Log</a>
+    </div>
+    {% if services %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Added</th>
+                <th>Recovered</th>
+                <th>Leak Found</th>
+                <th>Technician</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for service in services %}
+            <tr>
+                <td>{{ service.service_date }}</td>
+                <td>{{ service.service_type }}</td>
+                <td>{{ service.refrigerant_added }} lbs</td>
+                <td>{{ service.refrigerant_recovered }} lbs</td>
+                <td><span class="badge badge-{{ 'warning' if service.leak_found else 'success' }}">{{ 'Yes' if service.leak_found else 'No' }}</span></td>
+                <td>{{ service.technician.name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No service logs recorded.</p>
+    {% endif %}
+</div>
+{% endblock %}

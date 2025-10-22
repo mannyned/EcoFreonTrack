@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Equipment - EPA 608 Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-between align-center mb-3">
+    <h1>Equipment Inventory</h1>
+    <a href="{{ url_for('equipment_add') }}" class="btn btn-primary">Add New Equipment</a>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Equipment ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Refrigerant</th>
+                <th>Full Charge</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for equip in equipment %}
+            <tr>
+                <td><strong>{{ equip.equipment_id }}</strong></td>
+                <td>{{ equip.name }}</td>
+                <td>{{ equip.equipment_type }}</td>
+                <td>{{ equip.location or 'N/A' }}</td>
+                <td>{{ equip.refrigerant_name }} ({{ equip.refrigerant_type }})</td>
+                <td>{{ equip.full_charge }} lbs</td>
+                <td><span class="badge badge-{{ 'success' if equip.status == 'Active' else 'secondary' }}">{{ equip.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('equipment_detail', id=equip.id) }}" class="btn btn-sm btn-primary">View</a>
+                    <a href="{{ url_for('equipment_edit', id=equip.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

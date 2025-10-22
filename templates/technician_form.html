@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{% if technician %}Edit{% else %}Add{% endif %} Technician{% endblock %}
+{% block content %}
+<h1>{% if technician %}Edit{% else %}Add New{% endif %} Technician</h1>
+<div class="card">
+    <form method="POST">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" name="name" value="{{ technician.name if technician else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Certification Number *</label>
+                <input type="text" name="certification_number" value="{{ technician.certification_number if technician else '' }}" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Certification Type *</label>
+                <select name="certification_type" required>
+                    <option value="Type I" {% if technician and technician.certification_type == 'Type I' %}selected{% endif %}>Type I</option>
+                    <option value="Type II" {% if technician and technician.certification_type == 'Type II' %}selected{% endif %}>Type II</option>
+                    <option value="Type III" {% if technician and technician.certification_type == 'Type III' %}selected{% endif %}>Type III</option>
+                    <option value="Universal" {% if technician and technician.certification_type == 'Universal' %}selected{% endif %}>Universal</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Certification Date *</label>
+                <input type="date" name="certification_date" value="{{ technician.certification_date if technician else '' }}" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" value="{{ technician.email if technician else '' }}">
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" name="phone" value="{{ technician.phone if technician else '' }}">
+            </div>
+            {% if technician %}
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status">
+                    <option value="Active" {% if technician.status == 'Active' %}selected{% endif %}>Active</option>
+                    <option value="Inactive" {% if technician.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            {% endif %}
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Save Technician</button>
+            <a href="{{ url_for('technician_list') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

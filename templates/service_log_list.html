@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Service Logs{% endblock %}
+{% block content %}
+<div class="d-flex justify-between align-center mb-3">
+    <h1>Service & Repair Logs</h1>
+    <a href="{{ url_for('service_log_add') }}" class="btn btn-primary">Add Service Log</a>
+</div>
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Equipment</th><th>Type</th><th>Technician</th><th>Added</th><th>Recovered</th><th>Leak</th></tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.service_date }}</td>
+                <td><a href="{{ url_for('equipment_detail', id=log.equipment_id) }}">{{ log.equipment.equipment_id }}</a></td>
+                <td>{{ log.service_type }}</td>
+                <td>{{ log.technician.name }}</td>
+                <td>{{ log.refrigerant_added }} lbs</td>
+                <td>{{ log.refrigerant_recovered }} lbs</td>
+                <td><span class="badge badge-{{ 'warning' if log.leak_found else 'success' }}">{{ 'Yes' if log.leak_found else 'No' }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

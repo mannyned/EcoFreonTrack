@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1>Compliance Reports</h1>
+<div class="stats-grid">
+    <div class="stat-card"><h3>Total Equipment</h3><div class="stat-value">{{ equipment_stats.total }}</div></div>
+    <div class="stat-card success"><h3>Active Equipment</h3><div class="stat-value">{{ equipment_stats.active }}</div></div>
+    <div class="stat-card"><h3>Total Inspections</h3><div class="stat-value">{{ total_inspections }}</div></div>
+    <div class="stat-card {% if non_compliant > 0 %}danger{% else %}success{% endif %}"><h3>Non-Compliant</h3><div class="stat-value">{{ non_compliant }}</div></div>
+</div>
+<div class="card">
+    <h2>Refrigerant Usage</h2>
+    <table>
+        <thead><tr><th>Refrigerant</th><th>Total Used (lbs)</th></tr></thead>
+        <tbody>
+            {% for usage in refrigerant_usage %}
+            <tr><td>{{ usage[0] }}</td><td>{{ usage[1]|round(2) }} lbs</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

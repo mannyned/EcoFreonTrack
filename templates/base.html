@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EPA 608 Refrigerant Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>
+                EPA Section 608
+                <small>Refrigerant Tracking & Compliance System</small>
+            </h1>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Dashboard</a></li>
+            <li><a href="{{ url_for('equipment_list') }}" {% if 'equipment' in request.endpoint %}class="active"{% endif %}>Equipment</a></li>
+            <li><a href="{{ url_for('technician_list') }}" {% if 'technician' in request.endpoint %}class="active"{% endif %}>Technicians</a></li>
+            <li><a href="{{ url_for('service_log_list') }}" {% if 'service_log' in request.endpoint %}class="active"{% endif %}>Service Logs</a></li>
+            <li><a href="{{ url_for('leak_inspection_list') }}" {% if 'leak_inspection' in request.endpoint %}class="active"{% endif %}>Inspections</a></li>
+            <li><a href="{{ url_for('inventory_list') }}" {% if 'inventory' in request.endpoint %}class="active"{% endif %}>Inventory</a></li>
+            <li><a href="{{ url_for('alert_list') }}" {% if 'alert' in request.endpoint %}class="active"{% endif %}>Alerts</a></li>
+            <li><a href="{{ url_for('reports') }}" {% if 'reports' in request.endpoint %}class="active"{% endif %}>Reports</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+        <p><strong>EPA Section 608 Refrigerant Tracking & Compliance System</strong></p>
+        <p>Managed under 40 CFR Part 82</p>
+        <p>Version 1.0.0 | &copy; 2025</p>
+    </footer>
+</body>
+</html>

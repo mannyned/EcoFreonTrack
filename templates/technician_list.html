@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Technicians{% endblock %}
+{% block content %}
+<div class="d-flex justify-between align-center mb-3">
+    <h1>EPA 608 Certified Technicians</h1>
+    <a href="{{ url_for('technician_add') }}" class="btn btn-primary">Add Technician</a>
+</div>
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Name</th><th>Cert Number</th><th>Type</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for tech in technicians %}
+            <tr>
+                <td><strong>{{ tech.name }}</strong></td>
+                <td>{{ tech.certification_number }}</td>
+                <td><span class="badge badge-info">{{ tech.certification_type }}</span></td>
+                <td><span class="badge badge-{{ 'success' if tech.status == 'Active' else 'secondary' }}">{{ tech.status }}</span></td>
+                <td><a href="{{ url_for('technician_edit', id=tech.id) }}" class="btn btn-sm btn-secondary">Edit</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

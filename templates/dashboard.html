@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - EPA 608 Tracker{% endblock %}
+
+{% block content %}
+<h1>Compliance Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card success">
+        <h3>Active Equipment</h3>
+        <div class="stat-value">{{ total_equipment }}</div>
+    </div>
+
+    <div class="stat-card success">
+        <h3>Certified Technicians</h3>
+        <div class="stat-value">{{ total_technicians }}</div>
+    </div>
+
+    <div class="stat-card {% if active_alerts > 0 %}danger{% else %}success{% endif %}">
+        <h3>Active Alerts</h3>
+        <div class="stat-value">{{ active_alerts }}</div>
+    </div>
+
+    <div class="stat-card {% if low_inventory|length > 0 %}warning{% else %}success{% endif %}">
+        <h3>Low Inventory Items</h3>
+        <div class="stat-value">{{ low_inventory|length }}</div>
+    </div>
+</div>
+
+{% if active_alerts > 0 %}
+<div class="card">
+    <h2>Active Compliance Alerts</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Title</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alert in alerts[:5] %}
+            <tr>
+                <td>{{ alert.alert_date }}</td>
+                <td>{{ alert.alert_type }}</td>
+                <td><span class="badge badge-{{ 'danger' if alert.severity == 'Critical' else 'warning' }}">{{ alert.severity }}</span></td>
+                <td>{{ alert.title }}</td>
+                <td><a href="{{ url_for('alert_list') }}" class="btn btn-sm btn-primary">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="mt-2 text-right">
+        <a href="{{ url_for('alert_list') }}" class="btn btn-primary">View All Alerts</a>
+    </div>
+</div>
+{% endif %}
+
+{% if upcoming_inspections|length > 0 %}
+<div class="card">
+    <h2>Upcoming Inspections (Next 7 Days)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Equipment ID</th>
+                <th>Equipment Name</th>
+                <th>Next Inspection Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in upcoming_inspections %}
+            <tr>
+                <td>{{ item.equipment.equipment_id }}</td>
+                <td>{{ item.equipment.name }}</td>
+                <td>{{ item.next_date }}</td>
+                <td><a href="{{ url_for('equipment_detail', id=item.equipment.id) }}" class="btn btn-sm btn-primary">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Recent Service Activity</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Equipment</th>
+                <th>Type</th>
+                <th>Technician</th>
+                <th>Refrigerant Added</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for service in recent_services %}
+            <tr>
+                <td>{{ service.service_date }}</td>
+                <td>{{ service.equipment.equipment_id }}</td>
+                <td>{{ service.service_type }}</td>
+                <td>{{ service.technician.name }}</td>
+                <td>{{ service.refrigerant_added }} lbs</td>
+                <td><a href="{{ url_for('equipment_detail', id=service.equipment_id) }}" class="btn btn-sm btn-primary">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if low_inventory|length > 0 %}
+<div class="card">
+    <h2>Low Inventory Warnings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Refrigerant</th>
+                <th>Type</th>
+                <th>On Hand</th>
+                <th>Reorder Level</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in low_inventory %}
+            <tr>
+                <td>{{ item.refrigerant_name }}</td>
+                <td>{{ item.refrigerant_type }}</td>
+                <td>{{ item.quantity_on_hand }} lbs</td>
+                <td>{{ item.reorder_level }} lbs</td>
+                <td><span class="badge badge-warning">Below Reorder Level</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="mt-2 text-right">
+        <a href="{{ url_for('inventory_list') }}" class="btn btn-primary">Manage Inventory</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Leak Inspections{% endblock %}
+{% block content %}
+<div class="d-flex justify-between align-center mb-3">
+    <h1>Leak Inspections</h1>
+    <a href="{{ url_for('leak_inspection_add') }}" class="btn btn-primary">Add Inspection</a>
+</div>
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Equipment</th><th>Type</th><th>Leak</th><th>Leak Rate</th><th>Compliant</th><th>Technician</th></tr>
+        </thead>
+        <tbody>
+            {% for i in inspections %}
+            <tr>
+                <td>{{ i.inspection_date }}</td>
+                <td><a href="{{ url_for('equipment_detail', id=i.equipment_id) }}">{{ i.equipment.equipment_id }}</a></td>
+                <td>{{ i.inspection_type }}</td>
+                <td><span class="badge badge-{{ 'danger' if i.leak_detected else 'success' }}">{{ 'Yes' if i.leak_detected else 'No' }}</span></td>
+                <td>{{ i.annual_leak_rate|round(2) if i.annual_leak_rate else 'N/A' }}%</td>
+                <td><span class="badge badge-{{ 'success' if i.compliant else 'danger' }}">{{ 'Yes' if i.compliant else 'No' }}</span></td>
+                <td>{{ i.technician.name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

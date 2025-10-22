@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Compliance Alerts{% endblock %}
+{% block content %}
+<h1>Compliance Alerts</h1>
+<div class="card">
+    <table>
+        <thead>
+            <tr><th>Date</th><th>Type</th><th>Severity</th><th>Title</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+            {% for alert in alerts %}
+            <tr>
+                <td>{{ alert.alert_date }}</td>
+                <td>{{ alert.alert_type }}</td>
+                <td><span class="badge badge-{{ 'danger' if alert.severity == 'Critical' else 'warning' }}">{{ alert.severity }}</span></td>
+                <td>{{ alert.title }}</td>
+                <td><span class="badge badge-{{ 'secondary' if alert.status == 'Resolved' else 'danger' }}">{{ alert.status }}</span></td>
+                <td>
+                    {% if alert.status == 'Active' %}
+                    <form method="POST" action="{{ url_for('alert_resolve', id=alert.id) }}">
+                        <button type="submit" class="btn btn-sm btn-success">Resolve</button>
+                    </form>
+                    {% else %}
+                    <span>Resolved</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
