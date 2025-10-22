@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}AI Leak Prediction - EcoFreonTrack{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🤖 AI-Powered Leak Prediction</h2>
+    <p>Intelligent analysis to predict which equipment is at risk of exceeding EPA leak rate thresholds</p>
+</div>
+
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <h3 style="margin-top: 0;">How It Works</h3>
+    <p>Our AI analyzes historical leak inspection data, equipment age, service frequency, and compliance history to predict future leak risks. This helps you:</p>
+    <ul>
+        <li>Prevent EPA violations before they occur</li>
+        <li>Schedule proactive maintenance</li>
+        <li>Prioritize equipment for inspection</li>
+        <li>Reduce refrigerant loss and costs</li>
+    </ul>
+</div>
+
+{% if risks %}
+<div class="card">
+    <h3>Equipment Risk Analysis ({{ risks|length }} units analyzed)</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Equipment</th>
+                <th>Risk Level</th>
+                <th>Risk Score</th>
+                <th>Current Leak Rate</th>
+                <th>Threshold</th>
+                <th>Prediction</th>
+                <th>Recommendation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for risk in risks %}
+            <tr>
+                <td>
+                    <strong>{{ risk.equipment_id }}</strong><br>
+                    <small>{{ risk.equipment_name }}</small>
+                </td>
+                <td>
+                    <span class="badge badge-{{ risk.color }}">{{ risk.risk_level }}</span>
+                </td>
+                <td><strong>{{ risk.risk_score }}%</strong></td>
+                <td>
+                    {% if risk.current_leak_rate %}
+                        {{ "%.2f"|format(risk.current_leak_rate) }}%
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ "%.1f"|format(risk.threshold) }}%</td>
+                <td>
+                    <small>{{ risk.prediction }}</small>
+                    {% if risk.risk_factors %}
+                    <details style="margin-top: 0.5rem;">
+                        <summary style="cursor: pointer; color: #667eea;">Risk Factors</summary>
+                        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                            {% for factor in risk.risk_factors %}
+                            <li><small>{{ factor }}</small></li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% endif %}
+                </td>
+                <td>
+                    <small><strong>{{ risk.recommendation }}</strong></small><br>
+                    <small style="color: #666;">Confidence: {{ risk.confidence }} ({{ risk.inspections_analyzed }} inspections)</small>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>Risk Distribution</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        {% set critical = risks|selectattr('risk_level', 'equalto', 'Critical')|list|length %}
+        {% set high = risks|selectattr('risk_level', 'equalto', 'High')|list|length %}
+        {% set medium = risks|selectattr('risk_level', 'equalto', 'Medium')|list|length %}
+        {% set low = risks|selectattr('risk_level', 'equalto', 'Low')|list|length %}
+
+        <div style="text-align: center; padding: 1rem; background: #fee; border-radius: 4px;">
+            <div style="font-size: 2rem; font-weight: bold; color: #c00;">{{ critical }}</div>
+            <div>Critical Risk</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: #fff3cd; border-radius: 4px;">
+            <div style="font-size: 2rem; font-weight: bold; color: #856404;">{{ high }}</div>
+            <div>High Risk</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: #d1ecf1; border-radius: 4px;">
+            <div style="font-size: 2rem; font-weight: bold; color: #0c5460;">{{ medium }}</div>
+            <div>Medium Risk</div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: #d4edda; border-radius: 4px;">
+            <div style="font-size: 2rem; font-weight: bold; color: #155724;">{{ low }}</div>
+            <div>Low Risk</div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <p>No risk analysis available. Equipment needs at least 2 leak inspections to generate predictions.</p>
+    <p><a href="{{ url_for('leak_inspection_add') }}" class="btn">Add Leak Inspection</a></p>
+</div>
+{% endif %}
+
+<style>
+.badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+.badge-danger { background: #dc3545; color: white; }
+.badge-warning { background: #ffc107; color: #212529; }
+.badge-info { background: #17a2b8; color: white; }
+.badge-success { background: #28a745; color: white; }
+</style>
+{% endblock %}

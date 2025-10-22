@@ -26,6 +26,10 @@
             <li><a href="{{ url_for('inventory_list') }}" {% if 'inventory' in request.endpoint %}class="active"{% endif %}>Inventory</a></li>
             <li><a href="{{ url_for('alert_list') }}" {% if 'alert' in request.endpoint %}class="active"{% endif %}>Alerts</a></li>
             <li><a href="{{ url_for('reports') }}" {% if 'reports' in request.endpoint %}class="active"{% endif %}>Reports</a></li>
+            <li class="nav-section">AI Features:</li>
+            <li><a href="{{ url_for('ai_leak_risks') }}" {% if 'ai_leak_risks' in request.endpoint %}class="active"{% endif %}>Leak Prediction</a></li>
+            <li><a href="{{ url_for('ai_natural_language_service') }}" {% if 'ai_natural_language' in request.endpoint %}class="active"{% endif %}>Quick Entry</a></li>
+            <li><a href="{{ url_for('ai_chatbot') }}" {% if 'ai_chatbot' in request.endpoint %}class="active"{% endif %}>EPA Assistant</a></li>
         </ul>
     </nav>
 

@@ -10,6 +10,18 @@ from sqlalchemy import func, desc
 from config import get_config
 import os
 
+# Import AI features
+try:
+    from ai_features import (
+        get_equipment_at_risk,
+        parse_service_nl,
+        ask_compliance_question,
+        AIConfig
+    )
+    AI_AVAILABLE = True
+except ImportError:
+    AI_AVAILABLE = False
+
 # Create Flask app with environment-based configuration
 env = os.environ.get('FLASK_ENV', 'development')
 app = Flask(__name__)
@@ -581,6 +593,158 @@ def api_compliance_status(equipment_id):
             'compliant': True,
             'message': 'No inspections recorded'
         })
+
+
+# ============================================================================
+# AI FEATURES
+# ============================================================================
+
+@app.route('/ai/leak-risks')
+def ai_leak_risks():
+    """AI-powered leak risk analysis page"""
+    if not AI_AVAILABLE or not AIConfig.ENABLED:
+        flash('AI features not enabled. Set AI_ENABLED=true and ANTHROPIC_API_KEY environment variables.', 'warning')
+        return redirect(url_for('index'))
+
+    try:
+        risks = get_equipment_at_risk(top_n=20)
+        return render_template('ai_leak_risks.html', risks=risks, ai_enabled=AIConfig.ENABLED)
+    except Exception as e:
+        flash(f'Error getting AI predictions: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+
+@app.route('/ai/natural-language-service', methods=['GET', 'POST'])
+def ai_natural_language_service():
+    """Natural language service entry page"""
+    if not AI_AVAILABLE or not AIConfig.ENABLED:
+        flash('AI features not enabled. Set AI_ENABLED=true and ANTHROPIC_API_KEY environment variables.', 'warning')
+        return redirect(url_for('service_log_add'))
+
+    if request.method == 'POST':
+        try:
+            description = request.form.get('description', '')
+            if not description:
+                flash('Please enter a service description', 'error')
+                return render_template('ai_natural_language_service.html')
+
+            # Parse the natural language description
+            parsed = parse_service_nl(description)
+
+            if 'error' in parsed:
+                flash(f"AI Parsing Error: {parsed['error']}", 'error')
+                return render_template('ai_natural_language_service.html',
+                                     description=description,
+                                     parsed=None)
+
+            # Return the parsed data for review
+            equipment = Equipment.query.filter_by(status='Active').all()
+            technicians = Technician.query.filter_by(status='Active').all()
+
+            return render_template('ai_natural_language_service.html',
+                                 description=description,
+                                 parsed=parsed,
+                                 equipment=equipment,
+                                 technicians=technicians)
+
+        except Exception as e:
+            flash(f'Error processing natural language: {str(e)}', 'error')
+            return render_template('ai_natural_language_service.html')
+
+    return render_template('ai_natural_language_service.html')
+
+
+@app.route('/ai/chatbot', methods=['GET', 'POST'])
+def ai_chatbot():
+    """EPA Compliance chatbot page"""
+    if not AI_AVAILABLE or not AIConfig.ENABLED:
+        flash('AI features not enabled. Set AI_ENABLED=true and ANTHROPIC_API_KEY environment variables.', 'warning')
+        return redirect(url_for('index'))
+
+    answer_data = None
+
+    if request.method == 'POST':
+        try:
+            question = request.form.get('question', '')
+            if not question:
+                flash('Please enter a question', 'error')
+                return render_template('ai_chatbot.html')
+
+            # Get context from system
+            context = {
+                'total_equipment': Equipment.query.filter_by(status='Active').count(),
+                'active_alerts': ComplianceAlert.query.filter_by(status='Active').count(),
+                'recent_violations': LeakInspection.query.filter_by(compliant=False).count()
+            }
+
+            # Ask the chatbot
+            answer_data = ask_compliance_question(question, context)
+
+            return render_template('ai_chatbot.html',
+                                 question=question,
+                                 answer=answer_data)
+
+        except Exception as e:
+            flash(f'Error getting chatbot response: {str(e)}', 'error')
+            return render_template('ai_chatbot.html')
+
+    return render_template('ai_chatbot.html', answer=answer_data)
+
+
+@app.route('/api/ai/parse-service', methods=['POST'])
+def api_ai_parse_service():
+    """API endpoint for natural language service parsing"""
+    if not AI_AVAILABLE or not AIConfig.ENABLED:
+        return jsonify({'error': 'AI features not enabled'}), 400
+
+    try:
+        data = request.get_json()
+        description = data.get('description', '')
+
+        if not description:
+            return jsonify({'error': 'No description provided'}), 400
+
+        parsed = parse_service_nl(description)
+        return jsonify(parsed)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai/equipment-risk/<int:equipment_id>')
+def api_ai_equipment_risk(equipment_id):
+    """API endpoint for equipment risk analysis"""
+    if not AI_AVAILABLE or not AIConfig.ENABLED:
+        return jsonify({'error': 'AI features not enabled'}), 400
+
+    try:
+        from ai_features import LeakPredictionAI
+        risk = LeakPredictionAI.analyze_equipment_risk(equipment_id)
+        return jsonify(risk)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai/ask', methods=['POST'])
+def api_ai_ask():
+    """API endpoint for compliance chatbot"""
+    if not AI_AVAILABLE or not AIConfig.ENABLED:
+        return jsonify({'error': 'AI features not enabled'}), 400
+
+    try:
+        data = request.get_json()
+        question = data.get('question', '')
+
+        if not question:
+            return jsonify({'error': 'No question provided'}), 400
+
+        context = data.get('context', None)
+        answer = ask_compliance_question(question, context)
+        return jsonify(answer)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}EPA Compliance Assistant - EcoFreonTrack{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>💬 EPA Section 608 Compliance Assistant</h2>
+    <p>Ask questions about refrigerant regulations, compliance requirements, and best practices</p>
+</div>
+
+<div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 2rem;">
+    <h3 style="margin-top: 0;">How Can I Help You Today?</h3>
+    <p>I'm an AI assistant trained on EPA Section 608 regulations (40 CFR Part 82). I can help you with:</p>
+    <ul style="margin-bottom: 0;">
+        <li>Understanding leak rate thresholds and repair requirements</li>
+        <li>Record-keeping and documentation requirements</li>
+        <li>Technician certification questions</li>
+        <li>Recovery and disposal procedures</li>
+        <li>Compliance deadlines and penalties</li>
+        <li>Interpreting specific CFR citations</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h3>Ask a Question</h3>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="question"><strong>Your Question:</strong></label>
+            <textarea name="question" id="question" rows="4" required
+                      placeholder="Example: What is the leak rate threshold for comfort cooling equipment?">{% if question %}{{ question }}{% endif %}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">🤖 Ask AI Assistant</button>
+    </form>
+</div>
+
+{% if answer %}
+<div class="card" style="border: 2px solid #667eea;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-radius: 4px 4px 0 0;">
+        <h3 style="margin: 0;">💡 AI Assistant Response</h3>
+        <small>Confidence: {{ answer.confidence }}</small>
+    </div>
+
+    <div class="answer-content" style="background: #f8f9fa; padding: 1.5rem; border-radius: 4px; margin-bottom: 1.5rem; line-height: 1.8;">
+        {{ answer.answer|replace('\n', '<br>')|safe }}
+    </div>
+
+    {% if answer.sources %}
+    <div class="sources">
+        <strong>📚 Referenced Regulations:</strong>
+        <div style="margin-top: 0.5rem;">
+            {% for source in answer.sources %}
+            <span class="badge" style="background: #667eea; color: white; padding: 0.25rem 0.75rem; margin-right: 0.5rem; border-radius: 4px;">{{ source }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="alert alert-warning" style="margin-top: 1.5rem;">
+        <strong>⚠️ Important Disclaimer:</strong>
+        <p style="margin: 0.5rem 0 0 0;">This AI assistant provides general guidance based on EPA Section 608 regulations. It is not legal advice. Always consult with EPA compliance experts and refer to official CFR documentation for regulatory compliance.</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>Example Questions</h3>
+    <div style="display: grid; gap: 1rem;">
+        <div class="question-example">
+            <strong>🔹 Leak Rate Thresholds:</strong>
+            <p>"What is the leak rate threshold for a 75-pound comfort cooling system?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Repair Requirements:</strong>
+            <p>"How long do I have to repair equipment after exceeding the leak threshold?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Record Keeping:</strong>
+            <p>"What service records am I required to keep for EPA 608 compliance?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Technician Certification:</strong>
+            <p>"What's the difference between Type I, II, III, and Universal certification?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Recovery Requirements:</strong>
+            <p>"What are the recovery requirements when disposing of equipment?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Penalties:</strong>
+            <p>"What are the penalties for violating EPA Section 608 regulations?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Inspection Frequency:</strong>
+            <p>"How often should I inspect equipment for leaks?"</p>
+        </div>
+        <div class="question-example">
+            <strong>🔹 Refrigerant Types:</strong>
+            <p>"Which refrigerants are regulated under Section 608?"</p>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-primary {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+}
+.btn-primary:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+.question-example {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+.question-example p {
+    margin: 0.5rem 0 0 0;
+    color: #666;
+    font-style: italic;
+}
+.alert-warning {
+    background: #fff3cd;
+    border-left: 4px solid #856404;
+    padding: 1rem;
+}
+.answer-content {
+    font-size: 1.05rem;
+}
+</style>
+
+<script>
+// Click on example questions to auto-fill
+document.querySelectorAll('.question-example p').forEach(example => {
+    example.style.cursor = 'pointer';
+    example.addEventListener('click', function() {
+        document.getElementById('question').value = this.textContent.trim().replace(/^"|"$/g, '');
+        document.getElementById('question').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+});
+</script>
+{% endblock %}

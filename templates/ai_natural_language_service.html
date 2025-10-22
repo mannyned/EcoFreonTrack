@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Natural Language Service Entry - EcoFreonTrack{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🎤 Natural Language Service Entry</h2>
+    <p>Describe the service work in plain English - AI will extract the structured data</p>
+</div>
+
+<div class="card">
+    <h3>Quick Service Log Entry</h3>
+
+    <div class="info-box" style="background: #e7f3ff; padding: 1rem; border-left: 4px solid #667eea; margin-bottom: 1.5rem;">
+        <strong>💡 How to use:</strong>
+        <p style="margin: 0.5rem 0 0 0;">Simply describe what you did in natural language. For example:</p>
+        <ul style="margin: 0.5rem 0 0 1.5rem;">
+            <li>"Serviced AC-12 today, found leak at condenser coil, added 3.5 pounds of R-410A"</li>
+            <li>"John repaired unit REF-5 on March 15th, leak at evaporator, recovered 2 lbs"</li>
+            <li>"Routine maintenance on chiller CHILL-01, no leaks found, system running normal"</li>
+        </ul>
+    </div>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="description"><strong>Service Description:</strong></label>
+            <textarea name="description" id="description" rows="5" required
+                      placeholder="Example: Serviced AC-12 today, found leak at condenser coil, added 3.5 pounds of R-410A, repaired with brazing">{{ description if description else '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">🤖 Parse with AI</button>
+        <a href="{{ url_for('service_log_add') }}" class="btn">Manual Entry Form</a>
+    </form>
+</div>
+
+{% if parsed %}
+<div class="card" style="border: 2px solid #28a745;">
+    <h3 style="color: #28a745;">✅ AI Extracted Data (Confidence: {{ parsed.confidence }})</h3>
+
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 4px; margin-bottom: 1.5rem;">
+        <h4 style="margin-top: 0;">Extracted Information:</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold; width: 200px;">Equipment:</td>
+                <td style="padding: 0.5rem;">{{ parsed.equipment_id }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Technician:</td>
+                <td style="padding: 0.5rem;">{{ parsed.technician_name }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Service Date:</td>
+                <td style="padding: 0.5rem;">{{ parsed.service_date }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Service Type:</td>
+                <td style="padding: 0.5rem;">{{ parsed.service_type }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Refrigerant Added:</td>
+                <td style="padding: 0.5rem;">{{ parsed.refrigerant_added }} lbs</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Refrigerant Recovered:</td>
+                <td style="padding: 0.5rem;">{{ parsed.refrigerant_recovered }} lbs</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Leak Found:</td>
+                <td style="padding: 0.5rem;">{{ 'Yes' if parsed.leak_found else 'No' }}</td>
+            </tr>
+            {% if parsed.leak_found %}
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Leak Location:</td>
+                <td style="padding: 0.5rem;">{{ parsed.leak_location }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Leak Repaired:</td>
+                <td style="padding: 0.5rem;">{{ 'Yes' if parsed.leak_repaired else 'No' }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Work Performed:</td>
+                <td style="padding: 0.5rem;">{{ parsed.work_performed }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Follow-up Required:</td>
+                <td style="padding: 0.5rem;">{{ 'Yes' if parsed.follow_up_required else 'No' }}</td>
+            </tr>
+            {% if parsed.follow_up_required %}
+            <tr>
+                <td style="padding: 0.5rem; font-weight: bold;">Follow-up Notes:</td>
+                <td style="padding: 0.5rem;">{{ parsed.follow_up_notes }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Next Steps:</strong>
+        <p>Review the extracted data above. If everything looks correct, use the <a href="{{ url_for('service_log_add') }}">manual service log form</a> to save this data (pre-fill the form with these values).</p>
+        <p style="margin-bottom: 0;"><strong>Note:</strong> AI extraction is in beta. Always verify the data before saving.</p>
+    </div>
+
+    <a href="{{ url_for('service_log_add') }}" class="btn btn-success">Continue to Service Log Form →</a>
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>Example Descriptions</h3>
+    <div style="display: grid; gap: 1rem;">
+        <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 3px solid #667eea;">
+            <strong>Example 1:</strong> "Serviced AC-12 on May 10th, found leak at condenser coil, added 3.5 pounds of R-410A, repaired leak with brazing, follow-up needed in 30 days"
+        </div>
+        <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 3px solid #667eea;">
+            <strong>Example 2:</strong> "John Smith performed routine maintenance on refrigeration unit REF-5, no leaks detected, system pressure normal, recovered 0.5 lbs during service"
+        </div>
+        <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 3px solid #667eea;">
+            <strong>Example 3:</strong> "Emergency repair on chiller CHILL-01, leak at evaporator connection, added 15 lbs R-134a, brazed connection, requires verification inspection"
+        </div>
+    </div>
+</div>
+
+<style>
+.info-box ul {
+    padding-left: 1.5rem;
+}
+.alert-info {
+    background: #d1ecf1;
+    border-left: 4px solid #0c5460;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.btn-primary {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+.btn-primary:hover {
+    background: #5568d3;
+}
+.btn-success {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+}
+.btn-success:hover {
+    background: #218838;
+}
+</style>
+{% endblock %}
