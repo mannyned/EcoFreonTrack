@@ -1,4 +1,5 @@
-# EPA Section 608 Refrigerant Tracking & Compliance System
+# EcoFreonTrack
+
 
 A comprehensive web application for tracking refrigerant usage, leakage, recovery, and disposal in compliance with **EPA Section 608** (40 CFR Part 82).
 
@@ -105,7 +106,7 @@ This application helps businesses and technicians maintain compliance with EPA r
 
 1. **Clone or download** this repository:
    ```bash
-   cd "EPA 608 Refrigerant Tracker"
+   cd EcoFreonTrack
    ```
 
 2. **Install dependencies**:
@@ -309,7 +310,7 @@ Non-compliance can result in significant penalties:
 ## Project Structure
 
 ```
-EPA 608 Refrigerant Tracker/
+EcoFreonTrack/
 ├── app.py                    # Flask application with routes
 ├── models.py                 # Database models (SQLAlchemy)
 ├── requirements.txt          # Python dependencies
