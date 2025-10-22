@@ -7,12 +7,13 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from models import db, Equipment, Technician, ServiceLog, LeakInspection, RefrigerantTransaction, ComplianceAlert, RefrigerantInventory
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
+from config import get_config
 import os
 
+# Create Flask app with environment-based configuration
+env = os.environ.get('FLASK_ENV', 'development')
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'epa-608-compliance-tracker-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///epa608_tracker.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config.from_object(get_config(env))
 
 db.init_app(app)
 
