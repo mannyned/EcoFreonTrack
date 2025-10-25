@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - EcoFreonTrack{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header-row">
+        <h1>User Management</h1>
+        <a href="{{ url_for('user_add') }}" class="btn btn-primary">Add New User</a>
+    </div>
+
+    {% if users %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr class="{{ 'inactive' if not user.is_active else '' }}">
+                <td><strong>{{ user.username }}</strong></td>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                    <span class="badge badge-{{ 'primary' if user.role == 'admin' else ('success' if user.role == 'compliance_manager' else 'info') }}">
+                        {{ user.role.replace('_', ' ').title() }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-{{ 'success' if user.is_active else 'danger' }}">
+                        {{ 'Active' if user.is_active else 'Inactive' }}
+                    </span>
+                </td>
+                <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('user_edit', id=user.id) }}" class="btn-small btn-info">Edit</a>
+                    <form method="POST" action="{{ url_for('user_toggle_active', id=user.id) }}" style="display: inline;">
+                        <button type="submit" class="btn-small btn-{{ 'danger' if user.is_active else 'success' }}"
+                                onclick="return confirm('{{ 'Deactivate' if user.is_active else 'Activate' }} this user?')">
+                            {{ 'Deactivate' if user.is_active else 'Activate' }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No users found.</p>
+        <a href="{{ url_for('user_add') }}" class="btn btn-primary">Add First User</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.data-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.data-table tr.inactive {
+    opacity: 0.6;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.badge-primary { background-color: #007bff; color: white; }
+.badge-success { background-color: #28a745; color: white; }
+.badge-info { background-color: #17a2b8; color: white; }
+.badge-danger { background-color: #dc3545; color: white; }
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn, .btn-small {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    display: inline-block;
+}
+
+.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.empty-state p {
+    font-size: 1.125rem;
+    color: #666;
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}

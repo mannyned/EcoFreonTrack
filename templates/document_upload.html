@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Document - EcoFreonTrack{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Upload Document</h1>
+    <p>Attach documents to equipment, technicians, service logs, inspections, or transactions.</p>
+
+    <form method="POST" enctype="multipart/form-data" class="form">
+        <div class="form-group">
+            <label for="file">Select File: <span class="required">*</span></label>
+            <input type="file" id="file" name="file" required>
+            <small>Maximum file size: 10 MB. Allowed types: PDF, Images (JPG, PNG), Word, Excel</small>
+        </div>
+
+        <div class="form-group">
+            <label for="document_type">Document Type: <span class="required">*</span></label>
+            <select id="document_type" name="document_type" required>
+                <option value="Certification">Certification</option>
+                <option value="Invoice">Invoice / Receipt</option>
+                <option value="Photo">Photo</option>
+                <option value="Report">Report</option>
+                <option value="Manual">Manual / Datasheet</option>
+                <option value="Warranty">Warranty</option>
+                <option value="Inspection">Inspection Document</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" rows="3" placeholder="Brief description of the document"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="document_date">Document Date:</label>
+            <input type="date" id="document_date" name="document_date">
+            <small>Date shown on the document (e.g., certification issue date)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="expiration_date">Expiration Date:</label>
+            <input type="date" id="expiration_date" name="expiration_date">
+            <small>For certifications, warranties, etc.</small>
+        </div>
+
+        <h3>Link to Entity (optional)</h3>
+        <p><small>Select one of the following to attach this document:</small></p>
+
+        <div class="form-group">
+            <label for="equipment_id">Equipment:</label>
+            <select id="equipment_id" name="equipment_id">
+                <option value="">-- None --</option>
+                {% for equip in equipment %}
+                <option value="{{ equip.id }}">{{ equip.equipment_id }} - {{ equip.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="technician_id">Technician:</label>
+            <select id="technician_id" name="technician_id">
+                <option value="">-- None --</option>
+                {% for tech in technicians %}
+                <option value="{{ tech.id }}">{{ tech.name }} ({{ tech.certification_type }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="service_log_id">Service Log:</label>
+            <select id="service_log_id" name="service_log_id">
+                <option value="">-- None --</option>
+                {% for log in service_logs %}
+                <option value="{{ log.id }}">{{ log.service_date }} - {{ log.equipment.equipment_id }} ({{ log.service_type }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="leak_inspection_id">Leak Inspection:</label>
+            <select id="leak_inspection_id" name="leak_inspection_id">
+                <option value="">-- None --</option>
+                {% for inspection in leak_inspections %}
+                <option value="{{ inspection.id }}">{{ inspection.inspection_date }} - {{ inspection.equipment.equipment_id }} ({{ inspection.inspection_type }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="uploaded_by">Uploaded By:</label>
+            <input type="text" id="uploaded_by" name="uploaded_by" value="System">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Upload Document</button>
+            <a href="{{ url_for('document_list') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.required {
+    color: red;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="file"],
+select,
+textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+small {
+    display: block;
+    margin-top: 0.25rem;
+    color: #666;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.5rem;
+}
+</style>
+{% endblock %}

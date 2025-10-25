@@ -18,6 +18,11 @@ class Config:
     # SQLAlchemy settings
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Supabase settings
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+    USE_SUPABASE = os.environ.get('DATABASE_TYPE', 'sqlite').lower() == 'supabase'
+
     # Application settings
     APP_NAME = 'EcoFreonTrack'
     APP_VERSION = '1.0.0'
@@ -39,9 +44,14 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
 
-    # Use development database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        f'sqlite:///{BASE_DIR}/instance/epa608_tracker_dev.db'
+    # Use development database - Supabase or SQLite
+    if Config.USE_SUPABASE:
+        SQLALCHEMY_DATABASE_URI = os.environ.get('SUPABASE_DB_URL')
+        if not SQLALCHEMY_DATABASE_URI:
+            raise ValueError("SUPABASE_DB_URL must be set when DATABASE_TYPE=supabase")
+    else:
+        SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
+            f'sqlite:///{BASE_DIR}/instance/epa608_tracker_dev.db'
 
     # Development-specific settings
     SQLALCHEMY_ECHO = True  # Log all SQL queries (helpful for debugging)
@@ -53,9 +63,14 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
 
-    # Use production database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'sqlite:///{BASE_DIR}/instance/epa608_tracker_prod.db'
+    # Use production database - Supabase or SQLite
+    if Config.USE_SUPABASE:
+        SQLALCHEMY_DATABASE_URI = os.environ.get('SUPABASE_DB_URL')
+        if not SQLALCHEMY_DATABASE_URI:
+            raise ValueError("SUPABASE_DB_URL must be set when DATABASE_TYPE=supabase")
+    else:
+        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+            f'sqlite:///{BASE_DIR}/instance/epa608_tracker_prod.db'
 
     # Production security
     SECRET_KEY = os.environ.get('SECRET_KEY')  # Must be set in production!

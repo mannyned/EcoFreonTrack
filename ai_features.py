@@ -20,8 +20,8 @@ class AIConfig:
     # Anthropic API key
     API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
-    # Model to use
-    MODEL = 'claude-3-5-sonnet-20241022'
+    # Model to use (claude-3-haiku-20240307 is faster and more cost-effective)
+    MODEL = 'claude-3-haiku-20240307'
 
     # Enable/disable individual features
     LEAK_PREDICTION_ENABLED = True

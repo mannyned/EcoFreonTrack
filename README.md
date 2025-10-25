@@ -3,14 +3,19 @@
 
 A comprehensive web application for tracking refrigerant usage, leakage, recovery, and disposal in compliance with **EPA Section 608** (40 CFR Part 82).
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Database](https://img.shields.io/badge/database-Supabase-green.svg)
 
 ## Overview
 
-This application helps businesses and technicians maintain compliance with EPA regulations for handling refrigerants (CFCs, HCFCs, HFCs). It provides comprehensive tracking for:
+EcoFreonTrack is an enterprise-grade web application that helps businesses and technicians maintain compliance with EPA regulations for handling refrigerants (CFCs, HCFCs, HFCs). Features include:
 
+- **Role-Based Access Control** - Three-tier user system (Technician, Compliance Manager, Admin)
+- **Cloud Database Integration** - Supabase PostgreSQL or local SQLite
+- **Document Management** - Upload and organize certificates, compliance documents, and photos
+- **AI-Powered Compliance** - Automated alerts and intelligent monitoring
 - Equipment inventory and refrigerant charges
 - Leak rate monitoring and inspection schedules
 - Service and repair logs with refrigerant usage
@@ -52,6 +57,37 @@ This application helps businesses and technicians maintain compliance with EPA r
 
 ## Features
 
+### Role-Based Access Control (RBAC)
+
+**Three User Roles:**
+
+1. **Technician**
+   - Add service logs and refrigerant transactions
+   - Upload EPA 608 certificates
+   - View their own service history
+   - Limited access to compliance data
+
+2. **Compliance Manager**
+   - View comprehensive dashboards
+   - Approve and review service logs
+   - Generate compliance reports
+   - Monitor all compliance alerts
+   - Resolve compliance issues
+
+3. **Admin/Owner**
+   - Full system access
+   - Manage users and roles
+   - Manage sites and equipment
+   - Configure system settings
+   - Access all features
+
+**Security Features:**
+- Password hashing with Werkzeug (scrypt algorithm)
+- Session-based authentication
+- Permission-based authorization
+- Account activation controls
+- Last login tracking
+
 ### Equipment Management
 - Track all equipment containing refrigerants
 - Record equipment specifications (type, location, charge size)
@@ -74,6 +110,7 @@ This application helps businesses and technicians maintain compliance with EPA r
 - EPA 608 certification tracking
 - Certification expiration alerts
 - Service history per technician
+- Link user accounts to technician records
 
 ### Refrigerant Inventory
 - Real-time inventory tracking
@@ -81,6 +118,20 @@ This application helps businesses and technicians maintain compliance with EPA r
 - Recovery cylinder management
 - Low-stock alerts
 - Disposal documentation
+
+### Document Management
+- Upload EPA 608 certificates
+- Store service documentation
+- Attach photos to service logs
+- Organize compliance documents
+- Secure file storage
+
+### Cloud Database Integration
+- **Supabase PostgreSQL** for production (cloud-hosted)
+- **SQLite** for local development and testing
+- Automatic schema migration
+- Secure connection with environment variables
+- Real-time data synchronization
 
 ### Compliance Alerts
 - Leak rate threshold exceeded
@@ -101,6 +152,7 @@ This application helps businesses and technicians maintain compliance with EPA r
 ### Prerequisites
 - Python 3.8 or higher
 - pip (Python package manager)
+- (Optional) Supabase account for cloud database
 
 ### Setup
 
@@ -114,15 +166,59 @@ This application helps businesses and technicians maintain compliance with EPA r
    pip install -r requirements.txt
    ```
 
-3. **Initialize the database** (automatic on first run):
+3. **(Optional) Configure Supabase**:
+
+   For cloud database, create a `.env` file:
+   ```bash
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_KEY=your_supabase_anon_key
+   DATABASE_URL=postgresql://postgres:[password]@[host]/postgres
+   ```
+
+   See `SUPABASE_SETUP_GUIDE.md` for detailed instructions.
+
+4. **Set up Role-Based Access Control**:
+   ```bash
+   python setup_rbac.py
+   ```
+
+   This creates the user table and initial admin account:
+   - **Username:** admin
+   - **Password:** Admin123!
+
+   **IMPORTANT:** Change the admin password immediately after first login!
+
+5. **Start the application**:
    ```bash
    python app.py
    ```
 
-4. **Access the application**:
-   Open your browser to `http://localhost:5000`
+6. **Log in**:
+   - Open your browser to `http://localhost:5000/login`
+   - Use the admin credentials from step 4
+   - Change your password in user settings
+   - Create additional users as needed
 
 ## Usage
+
+### 0. User Management (Admin Only)
+
+**Create Users:**
+1. Log in as admin
+2. Navigate to **User Management**
+3. Click **Add New User**
+4. Fill in user details:
+   - Username, email, full name
+   - Select role (Technician, Compliance Manager, or Admin)
+   - Optionally link to technician record
+   - Set password and account status
+5. Click **Create User**
+
+**Manage Users:**
+- View all users and their status
+- Edit user details and roles
+- Activate/Deactivate accounts
+- Reset passwords
 
 ### 1. Add Equipment
 
@@ -261,6 +357,20 @@ This application helps businesses and technicians maintain compliance with EPA r
 - Quantity On Hand, Quantity Recovered
 - Reorder Level, Below Reorder Status
 
+### User
+- ID, Username (unique), Email (unique)
+- Password Hash, Full Name, Phone
+- Role (technician/compliance_manager/admin)
+- Technician ID (optional link to Technician table)
+- Is Active, Is Verified
+- Created At, Updated At, Last Login
+
+### Document
+- ID, Equipment/Service Log/Technician (optional links)
+- Document Type (certificate, invoice, photo, report, other)
+- File Name, File Path, File Size, MIME Type
+- Description, Uploaded At
+
 ## API Endpoints
 
 ### Equipment
@@ -313,10 +423,20 @@ Non-compliance can result in significant penalties:
 EcoFreonTrack/
 ├── app.py                    # Flask application with routes
 ├── models.py                 # Database models (SQLAlchemy)
+├── auth.py                   # Authentication and authorization module
+├── setup_rbac.py             # RBAC setup script
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # This file
+├── USER_GUIDE.md             # Comprehensive user guide
+├── RBAC_IMPLEMENTATION_SUMMARY.md # RBAC documentation
+├── SUPABASE_SETUP_GUIDE.md   # Cloud database setup guide
+├── .env                      # Environment variables (create this)
 ├── templates/               # HTML templates
+│   ├── base.html            # Base template
+│   ├── login.html           # Login page
 │   ├── dashboard.html       # Main dashboard
+│   ├── user_list.html       # User management (admin)
+│   ├── user_form.html       # Add/edit user (admin)
 │   ├── equipment_list.html  # Equipment listing
 │   ├── equipment_detail.html # Equipment detail page
 │   ├── equipment_form.html  # Add/edit equipment
@@ -328,12 +448,14 @@ EcoFreonTrack/
 │   ├── leak_inspection_form.html # Add inspection
 │   ├── inventory.html       # Refrigerant inventory
 │   ├── alert_list.html      # Compliance alerts
+│   ├── document_list.html   # Document management
 │   └── reports.html         # Compliance reports
 ├── static/
 │   ├── css/
 │   │   └── style.css       # Application styles
 │   └── js/
 │       └── main.js         # JavaScript functions
+├── uploads/                 # Uploaded documents (created automatically)
 └── epa608_tracker.db       # SQLite database (created on first run)
 ```
 
@@ -367,7 +489,18 @@ For issues, questions, or contributions:
 
 ## Version History
 
-### v1.0.0 (Current)
+### v2.0.0 (Current - October 2025)
+- **Role-Based Access Control (RBAC)** - Three-tier user system
+- **User Authentication** - Secure login with password hashing
+- **User Management** - Admin interface for managing users
+- **Supabase Integration** - Cloud PostgreSQL database support
+- **Document Management** - Upload and organize compliance documents
+- **Enhanced Security** - Session-based auth, permission decorators
+- Technician-User account linking
+- Last login tracking
+- Account activation controls
+
+### v1.0.0 (September 2025)
 - Initial release
 - Equipment management and tracking
 - Leak inspection and monitoring
@@ -379,18 +512,25 @@ For issues, questions, or contributions:
 
 ## Future Enhancements
 
-- Multi-user authentication and roles
 - Email notifications for alerts
-- PDF report generation
+- PDF report generation with digital signatures
 - Mobile app integration
-- Cloud database support
 - Advanced analytics and trends
 - Integration with refrigerant suppliers
-- Barcode/QR code scanning
-- Photo attachments for service logs
+- Barcode/QR code scanning for equipment
+- Two-factor authentication (2FA)
+- Audit logs for compliance tracking
+- Multi-site management
+- Custom report builder
 
 ---
 
 **Developed for EPA Section 608 Compliance**
-**Version 1.0.0**
+**Version 2.0.0**
 **Last Updated: October 2025**
+
+## Additional Documentation
+
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Comprehensive user guide with step-by-step instructions
+- **[RBAC_IMPLEMENTATION_SUMMARY.md](RBAC_IMPLEMENTATION_SUMMARY.md)** - Detailed RBAC system documentation
+- **[SUPABASE_SETUP_GUIDE.md](SUPABASE_SETUP_GUIDE.md)** - Cloud database configuration guide

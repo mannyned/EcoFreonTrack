@@ -3,12 +3,33 @@ EPA Section 608 Refrigerant Tracking & Compliance System
 Managed under 40 CFR Part 82
 Flask web application for tracking refrigerant usage, leakage, recovery, and compliance
 """
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from models import db, Equipment, Technician, ServiceLog, LeakInspection, RefrigerantTransaction, ComplianceAlert, RefrigerantInventory
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
+from models import db, Equipment, Technician, ServiceLog, LeakInspection, RefrigerantTransaction, ComplianceAlert, RefrigerantInventory, Document, TechnicianCertification, User
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
 from config import get_config
 import os
+from dotenv import load_dotenv
+from file_utils import (
+    create_document_record,
+    get_document_path,
+    delete_document,
+    get_documents_by_entity,
+    format_file_size,
+    get_document_icon,
+    ALLOWED_EXTENSIONS
+)
+from auth import (
+    login_required,
+    permission_required,
+    role_required,
+    get_current_user,
+    is_authenticated,
+    has_permission
+)
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import AI features
 try:
@@ -58,10 +79,221 @@ with app.app_context():
 
 
 # ============================================================================
+# AUTHENTICATION & USER MANAGEMENT
+# ============================================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """User login"""
+    # Redirect if already logged in
+    if is_authenticated():
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            flash('Please provide both username and password', 'danger')
+            return render_template('login.html')
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.check_password(password):
+            if not user.is_active:
+                flash('Your account is inactive. Please contact an administrator.', 'danger')
+                return render_template('login.html')
+
+            # Set session
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['role'] = user.role
+            session['full_name'] = user.full_name
+
+            # Update last login
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+
+            flash(f'Welcome back, {user.full_name}!', 'success')
+
+            # Redirect to next page or dashboard
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password', 'danger')
+            return render_template('login.html')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    """User logout"""
+    username = session.get('username', 'User')
+    session.clear()
+    flash(f'Goodbye, {username}! You have been logged out.', 'info')
+    return redirect(url_for('login'))
+
+
+@app.route('/users')
+@role_required('admin')
+def user_list():
+    """List all users (Admin only)"""
+    users = User.query.all()
+    return render_template('user_list.html', users=users)
+
+
+@app.route('/users/add', methods=['GET', 'POST'])
+@role_required('admin')
+def user_add():
+    """Add new user (Admin only)"""
+    if request.method == 'POST':
+        try:
+            # Check if username or email already exists
+            if User.query.filter_by(username=request.form['username']).first():
+                flash('Username already exists', 'danger')
+                return redirect(request.url)
+
+            if User.query.filter_by(email=request.form['email']).first():
+                flash('Email already exists', 'danger')
+                return redirect(request.url)
+
+            user = User(
+                username=request.form['username'],
+                email=request.form['email'],
+                full_name=request.form['full_name'],
+                phone=request.form.get('phone', ''),
+                role=request.form['role'],
+                is_active=True,
+                is_verified='is_verified' in request.form
+            )
+
+            # Set password
+            password = request.form.get('password', '')
+            if len(password) < 6:
+                flash('Password must be at least 6 characters', 'danger')
+                return redirect(request.url)
+
+            user.set_password(password)
+
+            # Link to technician if role is technician and technician_id provided
+            if request.form.get('technician_id'):
+                user.technician_id = int(request.form['technician_id'])
+
+            db.session.add(user)
+            db.session.commit()
+
+            flash(f'User {user.username} created successfully!', 'success')
+            return redirect(url_for('user_list'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating user: {str(e)}', 'danger')
+
+    # Get technicians for linking
+    technicians = Technician.query.filter_by(status='Active').all()
+    return render_template('user_form.html', user=None, technicians=technicians)
+
+
+@app.route('/users/<int:id>/edit', methods=['GET', 'POST'])
+@role_required('admin')
+def user_edit(id):
+    """Edit user (Admin only)"""
+    user = User.query.get_or_404(id)
+
+    if request.method == 'POST':
+        try:
+            # Check username uniqueness (excluding current user)
+            existing = User.query.filter_by(username=request.form['username']).first()
+            if existing and existing.id != id:
+                flash('Username already exists', 'danger')
+                return redirect(request.url)
+
+            # Check email uniqueness (excluding current user)
+            existing = User.query.filter_by(email=request.form['email']).first()
+            if existing and existing.id != id:
+                flash('Email already exists', 'danger')
+                return redirect(request.url)
+
+            user.username = request.form['username']
+            user.email = request.form['email']
+            user.full_name = request.form['full_name']
+            user.phone = request.form.get('phone', '')
+            user.role = request.form['role']
+            user.is_active = 'is_active' in request.form
+            user.is_verified = 'is_verified' in request.form
+
+            # Update password if provided
+            if request.form.get('password'):
+                password = request.form['password']
+                if len(password) < 6:
+                    flash('Password must be at least 6 characters', 'danger')
+                    return redirect(request.url)
+                user.set_password(password)
+
+            # Update technician link
+            if request.form.get('technician_id'):
+                user.technician_id = int(request.form['technician_id'])
+            else:
+                user.technician_id = None
+
+            db.session.commit()
+            flash(f'User {user.username} updated successfully!', 'success')
+            return redirect(url_for('user_list'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating user: {str(e)}', 'danger')
+
+    technicians = Technician.query.filter_by(status='Active').all()
+    return render_template('user_form.html', user=user, technicians=technicians)
+
+
+@app.route('/users/<int:id>/toggle-active', methods=['POST'])
+@role_required('admin')
+def user_toggle_active(id):
+    """Toggle user active status (Admin only)"""
+    try:
+        user = User.query.get_or_404(id)
+
+        # Prevent deactivating yourself
+        current_user = get_current_user()
+        if current_user and current_user.id == id:
+            flash('You cannot deactivate your own account', 'danger')
+            return redirect(url_for('user_list'))
+
+        user.is_active = not user.is_active
+        db.session.commit()
+
+        status = 'activated' if user.is_active else 'deactivated'
+        flash(f'User {user.username} {status} successfully!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating user status: {str(e)}', 'danger')
+
+    return redirect(url_for('user_list'))
+
+
+# Make current_user available in all templates
+@app.context_processor
+def inject_user():
+    """Make current user available in all templates"""
+    return {
+        'current_user': get_current_user(),
+        'is_authenticated': is_authenticated(),
+        'has_permission': has_permission
+    }
+
+
+# ============================================================================
 # DASHBOARD & HOME
 # ============================================================================
 
 @app.route('/')
+@login_required
 def index():
     """Main dashboard"""
     # Get statistics
@@ -128,6 +360,9 @@ def equipment_detail(id):
     # Get refrigerant transactions
     transactions = RefrigerantTransaction.query.filter_by(equipment_id=id).order_by(desc(RefrigerantTransaction.transaction_date)).all()
 
+    # Get documents
+    documents = get_documents_by_entity(equipment_id=id)
+
     # Calculate annual leak rate
     if len(inspections) >= 2:
         latest = inspections[0]
@@ -143,8 +378,11 @@ def equipment_detail(id):
                            services=services,
                            inspections=inspections,
                            transactions=transactions,
+                           documents=documents,
                            annual_leak_rate=annual_leak_rate,
-                           compliant=compliant)
+                           compliant=compliant,
+                           format_file_size=format_file_size,
+                           get_document_icon=get_document_icon)
 
 
 @app.route('/equipment/add', methods=['GET', 'POST'])
@@ -745,6 +983,258 @@ def api_ai_ask():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# DOCUMENT MANAGEMENT
+# ============================================================================
+
+@app.route('/documents')
+def document_list():
+    """List all documents"""
+    documents = Document.query.filter_by(status='Active').order_by(desc(Document.uploaded_at)).all()
+    return render_template('document_list.html', documents=documents, format_file_size=format_file_size, get_document_icon=get_document_icon)
+
+
+@app.route('/documents/upload', methods=['GET', 'POST'])
+def document_upload():
+    """Upload a new document"""
+    if request.method == 'POST':
+        try:
+            # Get uploaded file
+            if 'file' not in request.files:
+                flash('No file selected', 'error')
+                return redirect(request.url)
+
+            file = request.files['file']
+            if file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(request.url)
+
+            # Get form data
+            document_type = request.form.get('document_type', 'Other')
+            description = request.form.get('description', '')
+            equipment_id = request.form.get('equipment_id')
+            technician_id = request.form.get('technician_id')
+            service_log_id = request.form.get('service_log_id')
+            leak_inspection_id = request.form.get('leak_inspection_id')
+            refrigerant_transaction_id = request.form.get('refrigerant_transaction_id')
+
+            # Parse dates
+            document_date = None
+            if request.form.get('document_date'):
+                document_date = datetime.strptime(request.form['document_date'], '%Y-%m-%d').date()
+
+            expiration_date = None
+            if request.form.get('expiration_date'):
+                expiration_date = datetime.strptime(request.form['expiration_date'], '%Y-%m-%d').date()
+
+            uploaded_by = request.form.get('uploaded_by', 'System')
+
+            # Determine subfolder based on entity
+            subfolder = None
+            if technician_id:
+                subfolder = 'technicians'
+            elif equipment_id:
+                subfolder = 'equipment'
+
+            # Create document record
+            success, result = create_document_record(
+                file=file,
+                document_type=document_type,
+                description=description,
+                equipment_id=int(equipment_id) if equipment_id else None,
+                technician_id=int(technician_id) if technician_id else None,
+                service_log_id=int(service_log_id) if service_log_id else None,
+                leak_inspection_id=int(leak_inspection_id) if leak_inspection_id else None,
+                refrigerant_transaction_id=int(refrigerant_transaction_id) if refrigerant_transaction_id else None,
+                document_date=document_date,
+                expiration_date=expiration_date,
+                uploaded_by=uploaded_by,
+                subfolder=subfolder
+            )
+
+            if success:
+                flash(f'Document uploaded successfully (ID: {result})!', 'success')
+
+                # Redirect to appropriate detail page
+                if equipment_id:
+                    return redirect(url_for('equipment_detail', id=equipment_id))
+                elif technician_id:
+                    return redirect(url_for('technician_detail', id=technician_id))
+                else:
+                    return redirect(url_for('document_list'))
+            else:
+                flash(f'Error uploading document: {result}', 'error')
+                return redirect(request.url)
+
+        except Exception as e:
+            flash(f'Error uploading document: {str(e)}', 'error')
+            return redirect(request.url)
+
+    # GET request - show upload form
+    equipment = Equipment.query.filter_by(status='Active').all()
+    technicians = Technician.query.filter_by(status='Active').all()
+    service_logs = ServiceLog.query.order_by(desc(ServiceLog.service_date)).limit(20).all()
+    leak_inspections = LeakInspection.query.order_by(desc(LeakInspection.inspection_date)).limit(20).all()
+
+    return render_template('document_upload.html',
+                         equipment=equipment,
+                         technicians=technicians,
+                         service_logs=service_logs,
+                         leak_inspections=leak_inspections,
+                         allowed_extensions=ALLOWED_EXTENSIONS)
+
+
+@app.route('/documents/<int:id>/download')
+def document_download(id):
+    """Download a document"""
+    document = Document.query.get_or_404(id)
+    file_path = get_document_path(id)
+
+    if not file_path or not os.path.exists(file_path):
+        flash('Document file not found', 'error')
+        return redirect(url_for('document_list'))
+
+    return send_file(file_path, as_attachment=True, download_name=document.original_filename)
+
+
+@app.route('/documents/<int:id>/view')
+def document_view(id):
+    """View a document (inline)"""
+    document = Document.query.get_or_404(id)
+    file_path = get_document_path(id)
+
+    if not file_path or not os.path.exists(file_path):
+        flash('Document file not found', 'error')
+        return redirect(url_for('document_list'))
+
+    # For PDFs and images, view inline
+    if document.mime_type in ['application/pdf', 'image/jpeg', 'image/png', 'image/gif']:
+        return send_file(file_path, mimetype=document.mime_type)
+    else:
+        # For other types, download
+        return send_file(file_path, as_attachment=True, download_name=document.original_filename)
+
+
+@app.route('/documents/<int:id>/delete', methods=['POST'])
+def document_delete(id):
+    """Delete a document"""
+    try:
+        success, message = delete_document(id)
+        if success:
+            flash(message, 'success')
+        else:
+            flash(message, 'error')
+    except Exception as e:
+        flash(f'Error deleting document: {str(e)}', 'error')
+
+    return redirect(request.referrer or url_for('document_list'))
+
+
+@app.route('/technicians/<int:id>')
+def technician_detail(id):
+    """Technician detail page with documents and certifications"""
+    tech = Technician.query.get_or_404(id)
+
+    # Get documents
+    documents = get_documents_by_entity(technician_id=id)
+
+    # Get certifications
+    certifications = TechnicianCertification.query.filter_by(technician_id=id).all()
+
+    # Get service history
+    services = ServiceLog.query.filter_by(technician_id=id).order_by(desc(ServiceLog.service_date)).limit(10).all()
+
+    # Get inspections
+    inspections = LeakInspection.query.filter_by(technician_id=id).order_by(desc(LeakInspection.inspection_date)).limit(10).all()
+
+    return render_template('technician_detail.html',
+                         technician=tech,
+                         documents=documents,
+                         certifications=certifications,
+                         services=services,
+                         inspections=inspections,
+                         format_file_size=format_file_size,
+                         get_document_icon=get_document_icon)
+
+
+@app.route('/technicians/<int:id>/certifications/add', methods=['POST'])
+def technician_certification_add(id):
+    """Add a certification to a technician"""
+    try:
+        tech = Technician.query.get_or_404(id)
+
+        cert = TechnicianCertification(
+            technician_id=id,
+            certification_type=request.form['certification_type'],
+            certification_number=request.form.get('certification_number', ''),
+            issuing_organization=request.form.get('issuing_organization', ''),
+            issue_date=datetime.strptime(request.form['issue_date'], '%Y-%m-%d').date(),
+            expiration_date=datetime.strptime(request.form['expiration_date'], '%Y-%m-%d').date() if request.form.get('expiration_date') else None,
+            notes=request.form.get('notes', '')
+        )
+
+        db.session.add(cert)
+        db.session.commit()
+
+        # Handle file upload if present
+        if 'certification_file' in request.files:
+            file = request.files['certification_file']
+            if file and file.filename != '':
+                success, result = create_document_record(
+                    file=file,
+                    document_type='Certification',
+                    description=f"{cert.certification_type} - {cert.certification_number}",
+                    technician_id=id,
+                    document_date=cert.issue_date,
+                    expiration_date=cert.expiration_date,
+                    uploaded_by=request.form.get('uploaded_by', 'System'),
+                    subfolder='technicians'
+                )
+
+                if not success:
+                    flash(f'Certification added but file upload failed: {result}', 'warning')
+                else:
+                    flash('Certification and document added successfully!', 'success')
+            else:
+                flash('Certification added successfully!', 'success')
+        else:
+            flash('Certification added successfully!', 'success')
+
+        return redirect(url_for('technician_detail', id=id))
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error adding certification: {str(e)}', 'error')
+        return redirect(url_for('technician_detail', id=id))
+
+
+# API endpoints for documents
+@app.route('/api/documents/equipment/<int:equipment_id>')
+def api_documents_equipment(equipment_id):
+    """Get documents for equipment"""
+    documents = get_documents_by_entity(equipment_id=equipment_id)
+    return jsonify([{
+        'id': d.id,
+        'filename': d.original_filename,
+        'type': d.document_type,
+        'size': d.file_size,
+        'uploaded_at': d.uploaded_at.isoformat()
+    } for d in documents])
+
+
+@app.route('/api/documents/technician/<int:technician_id>')
+def api_documents_technician(technician_id):
+    """Get documents for technician"""
+    documents = get_documents_by_entity(technician_id=technician_id)
+    return jsonify([{
+        'id': d.id,
+        'filename': d.original_filename,
+        'type': d.document_type,
+        'size': d.file_size,
+        'uploaded_at': d.uploaded_at.isoformat()
+    } for d in documents])
 
 
 if __name__ == '__main__':

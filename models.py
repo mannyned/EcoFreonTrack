@@ -4,6 +4,7 @@ Manages equipment, refrigerants, technicians, and compliance records per 40 CFR 
 """
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
@@ -43,6 +44,7 @@ class Equipment(db.Model):
     service_logs = db.relationship('ServiceLog', backref='equipment', lazy=True, cascade='all, delete-orphan')
     leak_inspections = db.relationship('LeakInspection', backref='equipment', lazy=True, cascade='all, delete-orphan')
     refrigerant_transactions = db.relationship('RefrigerantTransaction', backref='equipment', lazy=True, cascade='all, delete-orphan')
+    documents = db.relationship('Document', backref='equipment', lazy=True, foreign_keys='Document.equipment_id')
 
     def __repr__(self):
         return f'<Equipment {self.equipment_id}: {self.name}>'
@@ -74,6 +76,8 @@ class Technician(db.Model):
     # Relationships
     service_logs = db.relationship('ServiceLog', backref='technician', lazy=True)
     leak_inspections = db.relationship('LeakInspection', backref='technician', lazy=True)
+    documents = db.relationship('Document', backref='technician', lazy=True, foreign_keys='Document.technician_id')
+    certifications = db.relationship('TechnicianCertification', backref='technician', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Technician {self.name}: {self.certification_type}>'
@@ -108,6 +112,9 @@ class ServiceLog(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    documents = db.relationship('Document', backref='service_log', lazy=True, foreign_keys='Document.service_log_id')
 
     def __repr__(self):
         return f'<ServiceLog {self.id}: {self.service_type} on {self.service_date}>'
@@ -147,6 +154,9 @@ class LeakInspection(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Relationships
+    documents = db.relationship('Document', backref='leak_inspection', lazy=True, foreign_keys='Document.leak_inspection_id')
+
     def __repr__(self):
         return f'<LeakInspection {self.id}: Equipment {self.equipment_id} on {self.inspection_date}>'
 
@@ -182,6 +192,9 @@ class RefrigerantTransaction(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    documents = db.relationship('Document', backref='refrigerant_transaction', lazy=True, foreign_keys='Document.refrigerant_transaction_id')
 
     def __repr__(self):
         return f'<RefrigerantTransaction {self.id}: {self.transaction_type} - {self.quantity} lbs {self.refrigerant_name}>'
@@ -237,3 +250,162 @@ class RefrigerantInventory(db.Model):
 
     def __repr__(self):
         return f'<RefrigerantInventory {self.refrigerant_name}: {self.quantity_on_hand} lbs>'
+
+
+class Document(db.Model):
+    """Document attachments for equipment, service logs, inspections, and certifications"""
+    __tablename__ = 'document'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Document metadata
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)  # Relative path in uploads folder
+    file_size = db.Column(db.Integer)  # bytes
+    mime_type = db.Column(db.String(100))  # application/pdf, image/jpeg, etc.
+
+    # Document classification
+    document_type = db.Column(db.String(100), nullable=False)  # Certification, Invoice, Photo, Report, Manual, etc.
+    description = db.Column(db.Text)
+
+    # Relationships - Link to various entities (nullable for flexibility)
+    equipment_id = db.Column(db.Integer, db.ForeignKey('equipment.id'), nullable=True)
+    technician_id = db.Column(db.Integer, db.ForeignKey('technician.id'), nullable=True)
+    service_log_id = db.Column(db.Integer, db.ForeignKey('service_log.id'), nullable=True)
+    leak_inspection_id = db.Column(db.Integer, db.ForeignKey('leak_inspection.id'), nullable=True)
+    refrigerant_transaction_id = db.Column(db.Integer, db.ForeignKey('refrigerant_transaction.id'), nullable=True)
+
+    # Document dates
+    document_date = db.Column(db.Date)  # Date on the actual document (e.g., cert issue date)
+    expiration_date = db.Column(db.Date)  # For certifications, warranties, etc.
+
+    # Upload info
+    uploaded_by = db.Column(db.String(200))
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Status
+    status = db.Column(db.String(50), default='Active')  # Active, Archived, Deleted
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Document {self.id}: {self.original_filename} ({self.document_type})>'
+
+
+class TechnicianCertification(db.Model):
+    """EPA Section 608 and other certifications for technicians with document tracking"""
+    __tablename__ = 'technician_certification'
+
+    id = db.Column(db.Integer, primary_key=True)
+    technician_id = db.Column(db.Integer, db.ForeignKey('technician.id'), nullable=False)
+
+    # Certification details
+    certification_type = db.Column(db.String(100), nullable=False)  # EPA 608 Type I/II/III/Universal, NATE, etc.
+    certification_number = db.Column(db.String(100))
+    issuing_organization = db.Column(db.String(200))  # EPA, NATE, HVAC Excellence, etc.
+
+    # Dates
+    issue_date = db.Column(db.Date, nullable=False)
+    expiration_date = db.Column(db.Date)  # Some certs don't expire
+
+    # Status
+    status = db.Column(db.String(50), default='Active')  # Active, Expired, Revoked
+
+    # Notes
+    notes = db.Column(db.Text)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    documents = db.relationship('Document',
+                                primaryjoin="and_(Document.technician_id==TechnicianCertification.technician_id, "
+                                           "Document.document_type=='Certification')",
+                                foreign_keys='Document.technician_id',
+                                viewonly=True)
+
+    def __repr__(self):
+        return f'<TechnicianCertification {self.certification_type}: {self.certification_number}>'
+
+
+class User(db.Model):
+    """User accounts with role-based access control"""
+    __tablename__ = 'user'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(200), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+
+    # User profile
+    full_name = db.Column(db.String(200), nullable=False)
+    phone = db.Column(db.String(50))
+
+    # Role: technician, compliance_manager, admin
+    role = db.Column(db.String(50), nullable=False, default='technician')
+
+    # Link to technician record if user is a technician
+    technician_id = db.Column(db.Integer, db.ForeignKey('technician.id'), nullable=True)
+
+    # Status
+    is_active = db.Column(db.Boolean, default=True)
+    is_verified = db.Column(db.Boolean, default=False)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+
+    # Relationships
+    technician = db.relationship('Technician', backref='user_account', foreign_keys=[technician_id])
+
+    def set_password(self, password):
+        """Hash and set the user's password"""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        """Verify the user's password"""
+        return check_password_hash(self.password_hash, password)
+
+    def has_permission(self, permission):
+        """Check if user has a specific permission based on their role"""
+        permissions = {
+            'technician': [
+                'add_service_log',
+                'add_refrigerant_transaction',
+                'upload_certificate',
+                'view_own_logs',
+            ],
+            'compliance_manager': [
+                'view_dashboard',
+                'approve_logs',
+                'generate_reports',
+                'view_all_logs',
+                'view_compliance_alerts',
+                'resolve_alerts',
+            ],
+            'admin': [
+                'manage_users',
+                'manage_sites',
+                'manage_equipment',
+                'manage_technicians',
+                'manage_billing',
+                'view_dashboard',
+                'approve_logs',
+                'generate_reports',
+                'add_service_log',
+                'add_refrigerant_transaction',
+                'upload_certificate',
+                'view_all_logs',
+                'view_compliance_alerts',
+                'resolve_alerts',
+            ]
+        }
+        return permission in permissions.get(self.role, [])
+
+    def __repr__(self):
+        return f'<User {self.username}: {self.role}>'
