@@ -257,35 +257,8 @@
 <!-- Three-Column Dashboard Layout -->
 <div class="three-column-dashboard">
 
-    <!-- LEFT SIDEBAR - Recent Activity & Account (Manager View) -->
+    <!-- LEFT SIDEBAR - Account (Manager View) -->
     <aside class="dashboard-sidebar">
-        <div class="sidebar-section">
-            <h3 class="sidebar-title">Recent Activity</h3>
-            <div class="activity-list">
-                <div class="activity-item">
-                    <div class="activity-icon">✅</div>
-                    <div class="activity-text">
-                        <div class="activity-title">Inspection Completed</div>
-                        <div class="activity-time">2 hours ago</div>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon">⚠️</div>
-                    <div class="activity-text">
-                        <div class="activity-title">New Leak Alert</div>
-                        <div class="activity-time">5 hours ago</div>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon">📋</div>
-                    <div class="activity-text">
-                        <div class="activity-title">Report Generated</div>
-                        <div class="activity-time">1 day ago</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="sidebar-section">
             <h3 class="sidebar-title">My Account</h3>
             <div class="account-info">
@@ -905,11 +878,6 @@ function toggleAIInsights() {
         <h3>Active Alerts</h3>
         <div class="stat-value">{{ active_alerts }}</div>
     </div>
-
-    <div class="stat-card {% if low_inventory|length > 0 %}warning{% else %}success{% endif %}">
-        <h3>Low Inventory Items</h3>
-        <div class="stat-value">{{ low_inventory|length }}</div>
-    </div>
 </div>
 
 <!-- Role-Based Quick Actions -->
@@ -1098,33 +1066,6 @@ function toggleAIInsights() {
         <a href="{{ url_for('service_log_list') }}" class="btn btn-primary">View All Service Logs →</a>
     </div>
 </div>
-
-<!-- Low Inventory Warnings -->
-{% if low_inventory|length > 0 %}
-<div class="card">
-    <h2 style="color: #ff9800;">⚠️ Low Inventory Warnings</h2>
-    <div style="display: flex; flex-direction: column; gap: 1rem;">
-        {% for item in low_inventory %}
-        <div class="leak-rate-warning">
-            <div class="leak-rate-indicator">
-                <span class="icon">📦</span>
-                <div style="flex: 1;">
-                    <strong>{{ item.refrigerant_name }}</strong> ({{ item.refrigerant_type }})<br>
-                    <span style="font-size: 0.95rem;">
-                        On Hand: <strong>{{ item.quantity_on_hand }} lbs</strong> |
-                        Reorder Level: {{ item.reorder_level }} lbs
-                    </span>
-                </div>
-                <span class="badge badge-warning">Below Reorder Level</span>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    <div class="mt-2 text-right">
-        <a href="{{ url_for('inventory_list') }}" class="btn btn-primary btn-big">Manage Inventory →</a>
-    </div>
-</div>
-{% endif %}
 
 <!-- Offline Indicator -->
 <div class="offline-indicator" id="offlineIndicator">
