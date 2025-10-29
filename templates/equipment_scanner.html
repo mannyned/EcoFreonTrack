@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Equipment Scanner - EPA 608 Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>📱 Equipment QR/Barcode Scanner</h1>
+    <p style="font-size: 1.1rem; color: #666;">Scan equipment tags to quickly access records</p>
+</div>
+
+<!-- Scanner Interface -->
+<div class="card">
+    <div id="scanner-container" style="max-width: 600px; margin: 0 auto;">
+        <!-- Video preview for camera -->
+        <div id="video-container" style="position: relative; background-color: #000; border-radius: 12px; overflow: hidden; display: none;">
+            <video id="scanner-video" style="width: 100%; height: auto; display: block;"></video>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 80%; border: 3px solid #28a745; border-radius: 8px; pointer-events: none;"></div>
+        </div>
+
+        <!-- Scanner Status -->
+        <div id="scanner-status" class="leak-rate-safe" style="text-align: center; margin: 1.5rem 0;">
+            <div class="leak-rate-indicator" style="justify-content: center;">
+                <span class="icon">📷</span>
+                <span>Ready to scan</span>
+            </div>
+        </div>
+
+        <!-- Start/Stop Buttons -->
+        <div style="display: flex; gap: 1rem; margin: 1.5rem 0;">
+            <button id="start-scanner" class="btn btn-scan" style="flex: 1;">
+                <span class="icon">📷</span>
+                <span>Start Camera Scanner</span>
+            </button>
+            <button id="stop-scanner" class="btn btn-danger" style="flex: 1; display: none;">
+                <span class="icon">⏹️</span>
+                <span>Stop Scanner</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Manual Input Alternative -->
+    <div class="leak-rate-minor" style="margin: 2rem 0;">
+        <div class="leak-rate-indicator" style="flex-direction: column; align-items: flex-start;">
+            <h3 style="margin: 0 0 1rem 0;">Manual Equipment ID Entry</h3>
+            <form action="{{ url_for('equipment_list') }}" method="get" style="width: 100%; display: flex; gap: 1rem;">
+                <input type="text" name="search" placeholder="Enter Equipment ID (e.g., HVAC-001)"
+                       style="flex: 1; padding: 1rem; font-size: 1.1rem; border: 2px solid #ffc107; border-radius: 8px;">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Scans -->
+<div class="card">
+    <h2>📋 Recent Equipment Access</h2>
+    <div id="recent-scans">
+        <p style="text-align: center; color: #999; padding: 2rem;">No recent scans</p>
+    </div>
+</div>
+
+<!-- Quick Access Grid -->
+<div class="card">
+    <h2>🚀 Quick Access</h2>
+    <div class="action-grid">
+        <a href="{{ url_for('equipment_list') }}" class="action-button">
+            <div class="icon">📦</div>
+            <div class="label">All Equipment</div>
+            <div class="description">Browse full list</div>
+        </a>
+        <a href="{{ url_for('service_log_add') }}" class="action-button">
+            <div class="icon">📝</div>
+            <div class="label">Log Service</div>
+            <div class="description">Record work</div>
+        </a>
+        <a href="{{ url_for('leak_inspection_add') }}" class="action-button">
+            <div class="icon">🔍</div>
+            <div class="label">Leak Inspection</div>
+            <div class="description">Document test</div>
+        </a>
+        <a href="{{ url_for('equipment_add') }}" class="action-button">
+            <div class="icon">➕</div>
+            <div class="label">Add Equipment</div>
+            <div class="description">Register new</div>
+        </a>
+    </div>
+</div>
+
+<!-- Scanner JavaScript -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+let html5QrCode = null;
+let isScanning = false;
+
+// Load recent scans from localStorage
+function loadRecentScans() {
+    const recentScans = JSON.parse(localStorage.getItem('recentScans') || '[]');
+    const container = document.getElementById('recent-scans');
+
+    if (recentScans.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No recent scans</p>';
+        return;
+    }
+
+    container.innerHTML = recentScans.slice(0, 5).map(scan => `
+        <div class="leak-rate-safe" style="margin-bottom: 1rem;">
+            <div class="leak-rate-indicator">
+                <span class="icon">📦</span>
+                <div style="flex: 1;">
+                    <strong>${scan.equipmentId}</strong><br>
+                    <small style="color: #999;">${new Date(scan.timestamp).toLocaleString()}</small>
+                </div>
+                <a href="/equipment?search=${scan.equipmentId}" class="btn btn-primary">View</a>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Save scan to localStorage
+function saveRecentScan(equipmentId) {
+    const recentScans = JSON.parse(localStorage.getItem('recentScans') || '[]');
+    recentScans.unshift({
+        equipmentId: equipmentId,
+        timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('recentScans', JSON.stringify(recentScans.slice(0, 10)));
+    loadRecentScans();
+}
+
+// Handle successful scan
+function onScanSuccess(decodedText, decodedResult) {
+    // Show success status
+    document.getElementById('scanner-status').className = 'leak-rate-safe';
+    document.getElementById('scanner-status').innerHTML = `
+        <div class="leak-rate-indicator" style="justify-content: center;">
+            <span class="icon">✓</span>
+            <span>Scanned: ${decodedText}</span>
+        </div>
+    `;
+
+    // Save to recent scans
+    saveRecentScan(decodedText);
+
+    // Stop scanner and redirect
+    stopScanner();
+
+    // Redirect to equipment search
+    window.location.href = `/equipment?search=${encodeURIComponent(decodedText)}`;
+}
+
+// Handle scan errors
+function onScanError(errorMessage) {
+    // Ignore common scanning errors (scanning in progress)
+    if (errorMessage.includes('NotFoundException')) {
+        return;
+    }
+    console.log('Scanner error:', errorMessage);
+}
+
+// Start scanner
+async function startScanner() {
+    try {
+        if (isScanning) return;
+
+        const videoContainer = document.getElementById('video-container');
+        const statusElement = document.getElementById('scanner-status');
+        const startButton = document.getElementById('start-scanner');
+        const stopButton = document.getElementById('stop-scanner');
+
+        // Show video container
+        videoContainer.style.display = 'block';
+        startButton.style.display = 'none';
+        stopButton.style.display = 'block';
+
+        // Update status
+        statusElement.className = 'leak-rate-minor';
+        statusElement.innerHTML = `
+            <div class="leak-rate-indicator" style="justify-content: center;">
+                <span class="icon">📷</span>
+                <span>Scanning... Point camera at QR/barcode</span>
+            </div>
+        `;
+
+        // Initialize scanner
+        html5QrCode = new Html5Qrcode("video-container");
+
+        await html5QrCode.start(
+            { facingMode: "environment" }, // Use back camera
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            onScanSuccess,
+            onScanError
+        );
+
+        isScanning = true;
+
+    } catch (err) {
+        console.error('Failed to start scanner:', err);
+        document.getElementById('scanner-status').className = 'leak-rate-critical';
+        document.getElementById('scanner-status').innerHTML = `
+            <div class="leak-rate-indicator" style="justify-content: center;">
+                <span class="icon">❌</span>
+                <span>Camera access denied or not available</span>
+            </div>
+        `;
+        document.getElementById('video-container').style.display = 'none';
+        document.getElementById('start-scanner').style.display = 'block';
+        document.getElementById('stop-scanner').style.display = 'none';
+    }
+}
+
+// Stop scanner
+async function stopScanner() {
+    if (!isScanning || !html5QrCode) return;
+
+    try {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+        html5QrCode = null;
+        isScanning = false;
+
+        document.getElementById('video-container').style.display = 'none';
+        document.getElementById('start-scanner').style.display = 'block';
+        document.getElementById('stop-scanner').style.display = 'none';
+        document.getElementById('scanner-status').className = 'leak-rate-safe';
+        document.getElementById('scanner-status').innerHTML = `
+            <div class="leak-rate-indicator" style="justify-content: center;">
+                <span class="icon">📷</span>
+                <span>Ready to scan</span>
+            </div>
+        `;
+    } catch (err) {
+        console.error('Failed to stop scanner:', err);
+    }
+}
+
+// Event listeners
+document.getElementById('start-scanner').addEventListener('click', startScanner);
+document.getElementById('stop-scanner').addEventListener('click', stopScanner);
+
+// Load recent scans on page load
+loadRecentScans();
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (isScanning) {
+        stopScanner();
+    }
+});
+</script>
+{% endblock %}

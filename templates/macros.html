@@ -1,0 +1,198 @@
+{# Template Macros for Role-Based UI Elements #}
+{# These macros help conditionally show/hide elements based on user roles and permissions #}
+
+{# Check if current user has specific permission #}
+{% macro has_permission(permission_name) %}
+    {{ current_user and current_user.has_permission(permission_name) }}
+{% endmacro %}
+
+{# Check if current user has specific role #}
+{% macro has_role(role_name) %}
+    {{ current_user and current_user.role == role_name }}
+{% endmacro %}
+
+{# Check if current user has any of the specified roles #}
+{% macro has_any_role(roles) %}
+    {{ current_user and current_user.role in roles }}
+{% endmacro %}
+
+{# Display action button only if user has permission #}
+{% macro action_button_if_permitted(url, label, icon, description, color, permission) %}
+    {% if current_user and current_user.has_permission(permission) %}
+    <a href="{{ url }}" class="action-button" style="border-top-color: {{ color }};">
+        <div class="icon">{{ icon }}</div>
+        <div class="label">{{ label }}</div>
+        <div class="description">{{ description }}</div>
+    </a>
+    {% endif %}
+{% endmacro %}
+
+{# Display regular button only if user has permission #}
+{% macro button_if_permitted(url, label, btn_class, permission) %}
+    {% if current_user and current_user.has_permission(permission) %}
+    <a href="{{ url }}" class="btn {{ btn_class }}">{{ label }}</a>
+    {% endif %}
+{% endmacro %}
+
+{# Display edit/delete buttons only for non-auditors #}
+{% macro edit_delete_buttons(edit_url, delete_url, item_id) %}
+    {% if current_user and current_user.role != 'auditor' %}
+    <a href="{{ edit_url }}" class="btn btn-sm btn-primary">Edit</a>
+    {% if current_user.has_permission('delete_equipment') or current_user.has_permission('manage_equipment') %}
+    <a href="{{ delete_url }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this item?')">Delete</a>
+    {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{# Show read-only badge for auditors #}
+{% macro auditor_badge() %}
+    {% if current_user and current_user.role == 'auditor' %}
+    <span class="badge badge-warning" style="font-size: 0.9rem;">
+        📋 Read-Only Mode
+    </span>
+    {% endif %}
+{% endmacro %}
+
+{# Display form submit button only if not auditor #}
+{% macro submit_button_if_not_auditor(label="Save", btn_class="btn-primary") %}
+    {% if current_user and current_user.role != 'auditor' %}
+    <button type="submit" class="btn {{ btn_class }}">{{ label }}</button>
+    {% else %}
+    <div class="alert alert-warning">
+        <strong>Read-Only Access:</strong> You do not have permission to modify this data.
+    </div>
+    {% endif %}
+{% endmacro %}
+
+{# Disable form inputs for auditors #}
+{% macro form_field_attrs_for_role() %}
+    {% if current_user and current_user.role == 'auditor' %}readonly disabled{% endif %}
+{% endmacro %}
+
+{# Role-specific alert/info box #}
+{% macro role_info_box() %}
+    {% if current_user %}
+        {% if current_user.role == 'technician' %}
+        <div class="leak-rate-safe" style="margin-bottom: 1rem;">
+            <div class="leak-rate-indicator">
+                <span class="icon">🔧</span>
+                <div style="flex: 1;">
+                    <strong>Technician Mode</strong><br>
+                    <span style="font-size: 0.95rem; color: #666;">
+                        Quick access to service logging, equipment scanning, and status updates
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% elif current_user.role == 'compliance_manager' %}
+        <div class="leak-rate-safe" style="margin-bottom: 1rem; background: linear-gradient(135deg, #e6f7f5 0%, #b3e5df 100%); border-left: 5px solid #00B4A0;">
+            <div class="leak-rate-indicator">
+                <span class="icon">📊</span>
+                <div style="flex: 1;">
+                    <strong>Compliance Manager Mode</strong><br>
+                    <span style="font-size: 0.95rem; color: #666;">
+                        Monitoring, reporting, and analytics access
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% elif current_user.role == 'admin' %}
+        <div class="leak-rate-safe" style="margin-bottom: 1rem; background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-left: 5px solid #673ab7;">
+            <div class="leak-rate-indicator">
+                <span class="icon">⚙️</span>
+                <div style="flex: 1;">
+                    <strong>Administrator Mode</strong><br>
+                    <span style="font-size: 0.95rem; color: #666;">
+                        Full system access including user management and configuration
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% elif current_user.role == 'auditor' %}
+        <div class="leak-rate-safe" style="margin-bottom: 1rem; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 5px solid #ff9800;">
+            <div class="leak-rate-indicator">
+                <span class="icon">📋</span>
+                <div style="flex: 1;">
+                    <strong>Auditor Mode - Read-Only Access</strong><br>
+                    <span style="font-size: 0.95rem; color: #666;">
+                        View-only access to all compliance records, logs, and certifications
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{# Technician-specific quick entry button #}
+{% macro technician_quick_entry_button() %}
+    {% if current_user and current_user.role == 'technician' %}
+    <div class="card" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-left: 5px solid #28a745;">
+        <h3>⚡ Quick Entry</h3>
+        <div class="action-grid">
+            <a href="{{ url_for('service_log_add') }}" class="btn btn-success btn-big">
+                📝 Log Service Now
+            </a>
+            <a href="{{ url_for('equipment_scanner') }}" class="btn btn-success btn-big">
+                📱 Scan Equipment QR
+            </a>
+        </div>
+    </div>
+    {% endif %}
+{% endmacro %}
+
+{# Manager-specific analytics dashboard #}
+{% macro manager_analytics_summary(total_equipment, active_alerts, compliance_rate) %}
+    {% if current_user and (current_user.role == 'compliance_manager' or current_user.role == 'admin') %}
+    <div class="card">
+        <h3>📊 Compliance Analytics</h3>
+        <div class="stats-grid">
+            <div class="stat-card success">
+                <h4>Total Equipment</h4>
+                <div class="stat-value">{{ total_equipment }}</div>
+            </div>
+            <div class="stat-card {% if active_alerts > 0 %}danger{% else %}success{% endif %}">
+                <h4>Active Alerts</h4>
+                <div class="stat-value">{{ active_alerts }}</div>
+            </div>
+            <div class="stat-card {% if compliance_rate < 90 %}warning{% else %}success{% endif %}">
+                <h4>Compliance Rate</h4>
+                <div class="stat-value">{{ compliance_rate }}%</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endmacro %}
+
+{# Navigation link with permission check #}
+{% macro nav_link_if_permitted(url, label, endpoint_match, permission) %}
+    {% if current_user and current_user.has_permission(permission) %}
+    <li>
+        <a href="{{ url }}" {% if endpoint_match in request.endpoint %}class="active"{% endif %}>
+            {{ label }}
+        </a>
+    </li>
+    {% endif %}
+{% endmacro %}
+
+{# Show/hide table actions column based on role #}
+{% macro table_actions_header() %}
+    {% if current_user and current_user.role != 'auditor' %}
+    <th>Actions</th>
+    {% else %}
+    <th>View</th>
+    {% endif %}
+{% endmacro %}
+
+{# Table row actions - view for auditors, edit for others #}
+{% macro table_row_actions(view_url, edit_url, delete_url=None) %}
+    <td>
+        <a href="{{ view_url }}" class="btn btn-sm btn-primary">{% if current_user and current_user.role == 'auditor' %}View Details{% else %}View{% endif %}</a>
+        {% if current_user and current_user.role != 'auditor' %}
+        <a href="{{ edit_url }}" class="btn btn-sm btn-secondary">Edit</a>
+        {% if delete_url and (current_user.has_permission('delete_equipment') or current_user.role == 'admin') %}
+        <a href="{{ delete_url }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+        {% endif %}
+        {% endif %}
+    </td>
+{% endmacro %}

@@ -345,7 +345,14 @@ class User(db.Model):
     full_name = db.Column(db.String(200), nullable=False)
     phone = db.Column(db.String(50))
 
-    # Role: technician, compliance_manager, admin
+    # Company information
+    company_name = db.Column(db.String(200))
+    street_address = db.Column(db.String(300))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    zip_code = db.Column(db.String(20))
+
+    # Role: technician, compliance_manager, admin, auditor
     role = db.Column(db.String(50), nullable=False, default='technician')
 
     # Link to technician record if user is a technician
@@ -377,8 +384,11 @@ class User(db.Model):
             'technician': [
                 'add_service_log',
                 'add_refrigerant_transaction',
+                'add_leak_inspection',
                 'upload_certificate',
                 'view_own_logs',
+                'scan_equipment',
+                'view_equipment',
             ],
             'compliance_manager': [
                 'view_dashboard',
@@ -387,6 +397,12 @@ class User(db.Model):
                 'view_all_logs',
                 'view_compliance_alerts',
                 'resolve_alerts',
+                'manage_equipment',
+                'view_equipment',
+                'add_equipment',
+                'edit_equipment',
+                'view_analytics',
+                'export_reports',
             ],
             'admin': [
                 'manage_users',
@@ -399,10 +415,28 @@ class User(db.Model):
                 'generate_reports',
                 'add_service_log',
                 'add_refrigerant_transaction',
+                'add_leak_inspection',
                 'upload_certificate',
                 'view_all_logs',
                 'view_compliance_alerts',
                 'resolve_alerts',
+                'add_equipment',
+                'edit_equipment',
+                'delete_equipment',
+                'scan_equipment',
+                'view_equipment',
+                'view_analytics',
+                'export_reports',
+                'system_settings',
+            ],
+            'auditor': [
+                'view_dashboard',
+                'view_all_logs',
+                'view_compliance_alerts',
+                'view_equipment',
+                'generate_reports',
+                'export_reports',
+                'view_analytics',
             ]
         }
         return permission in permissions.get(self.role, [])

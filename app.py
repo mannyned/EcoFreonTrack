@@ -79,6 +79,16 @@ with app.app_context():
 
 
 # ============================================================================
+# PUBLIC LANDING PAGE
+# ============================================================================
+
+@app.route('/')
+def homepage():
+    """Public landing page - accessible without login"""
+    return render_template('homepage.html')
+
+
+# ============================================================================
 # AUTHENTICATION & USER MANAGEMENT
 # ============================================================================
 
@@ -87,7 +97,7 @@ def login():
     """User login"""
     # Redirect if already logged in
     if is_authenticated():
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -97,7 +107,10 @@ def login():
             flash('Please provide both username and password', 'danger')
             return render_template('login.html')
 
+        # Try to find user by username or email
         user = User.query.filter_by(username=username).first()
+        if not user:
+            user = User.query.filter_by(email=username).first()
 
         if user and user.check_password(password):
             if not user.is_active:
@@ -120,12 +133,115 @@ def login():
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'danger')
             return render_template('login.html')
 
     return render_template('login.html')
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    """User registration/signup"""
+    # Redirect if already logged in
+    if is_authenticated():
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        try:
+            # Validate all required fields
+            required_fields = {
+                'full_name': 'Full Name',
+                'email': 'Email Address',
+                'password': 'Password',
+                'company_name': 'Company Name',
+                'street_address': 'Street Address',
+                'city': 'City',
+                'state': 'State',
+                'zip_code': 'Zip Code',
+                'phone': 'Phone Number'
+            }
+
+            missing_fields = []
+            for field, label in required_fields.items():
+                if not request.form.get(field, '').strip():
+                    missing_fields.append(label)
+
+            if missing_fields:
+                flash(f'Please provide: {", ".join(missing_fields)}', 'danger')
+                return render_template('signup.html')
+
+            # Extract form data
+            full_name = request.form['full_name'].strip()
+            email = request.form['email'].strip().lower()
+            password = request.form['password']
+            company_name = request.form['company_name'].strip()
+            street_address = request.form['street_address'].strip()
+            city = request.form['city'].strip()
+            state = request.form['state'].strip()
+            zip_code = request.form['zip_code'].strip()
+            phone = request.form['phone'].strip()
+
+            # Validate password length
+            if len(password) < 6:
+                flash('Password must be at least 6 characters long', 'danger')
+                return render_template('signup.html')
+
+            # Generate username from email (before @)
+            username = email.split('@')[0]
+
+            # Check if email already exists
+            if User.query.filter_by(email=email).first():
+                flash('An account with this email already exists. Please login instead.', 'danger')
+                return render_template('signup.html')
+
+            # Check if username already exists (if so, add a number)
+            base_username = username
+            counter = 1
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            # Create new user
+            user = User(
+                username=username,
+                email=email,
+                full_name=full_name,
+                phone=phone,
+                company_name=company_name,
+                street_address=street_address,
+                city=city,
+                state=state,
+                zip_code=zip_code,
+                role='compliance_manager',  # Default role for new signups
+                is_active=True,
+                is_verified=False  # Require verification
+            )
+
+            user.set_password(password)
+
+            db.session.add(user)
+            db.session.commit()
+
+            # Auto-login after successful signup
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['role'] = user.role
+            session['full_name'] = user.full_name
+
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+
+            flash(f'Welcome, {user.full_name}! Your account has been created successfully.', 'success')
+            return redirect(url_for('dashboard'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating account: {str(e)}', 'danger')
+            return render_template('signup.html')
+
+    return render_template('signup.html')
 
 
 @app.route('/logout')
@@ -289,13 +405,13 @@ def inject_user():
 
 
 # ============================================================================
-# DASHBOARD & HOME
+# DASHBOARD
 # ============================================================================
 
-@app.route('/')
+@app.route('/dashboard')
 @login_required
-def index():
-    """Main dashboard"""
+def dashboard():
+    """Main dashboard - requires login"""
     # Get statistics
     total_equipment = Equipment.query.filter_by(status='Active').count()
     total_technicians = Technician.query.filter_by(status='Active').count()
@@ -325,6 +441,100 @@ def index():
         RefrigerantInventory.quantity_on_hand < RefrigerantInventory.reorder_level
     ).all()
 
+    # === COMPLIANCE METRICS (Manager/Auditor View) ===
+
+    # 1. Compliance Percentage - Equipment with leak rate < 30%
+    compliant_equipment = 0
+    if total_equipment > 0:
+        for equip in equipment_list:
+            last_inspection = LeakInspection.query.filter_by(equipment_id=equip.id).order_by(desc(LeakInspection.inspection_date)).first()
+            if last_inspection:
+                # Equipment is compliant if leak rate < 30% (EPA threshold)
+                if last_inspection.leak_rate_percent < 30:
+                    compliant_equipment += 1
+            else:
+                # No inspection yet, consider compliant (benefit of doubt)
+                compliant_equipment += 1
+
+        compliance_percentage = round((compliant_equipment / total_equipment) * 100, 1)
+    else:
+        compliance_percentage = 100.0
+
+    # 2. Active Leak Alerts (Critical + Warning)
+    critical_alerts = ComplianceAlert.query.filter_by(status='Active', severity='Critical').count()
+    warning_alerts = ComplianceAlert.query.filter_by(status='Active', severity='Warning').count()
+
+    # 3. Upcoming EPA Reports (next 30 days)
+    # For demo, we'll show inspections due as "reports needed"
+    upcoming_reports_count = len(upcoming_inspections)
+    # Add equipment that need annual reports
+    six_months_ago = today - timedelta(days=180)
+    equipment_needing_reports = Equipment.query.filter(
+        Equipment.status == 'Active',
+        Equipment.install_date <= six_months_ago
+    ).count()
+
+    # 4. Refrigerant Recovery Summary (last 30 days)
+    thirty_days_ago = today - timedelta(days=30)
+    recovery_logs = ServiceLog.query.filter(
+        ServiceLog.service_date >= thirty_days_ago,
+        ServiceLog.refrigerant_recovered > 0
+    ).all()
+
+    total_recovered = sum([log.refrigerant_recovered for log in recovery_logs])
+    recovery_count = len(recovery_logs)
+
+    # 5. Monthly Refrigerant Usage Trend (last 6 months)
+    monthly_usage = []
+    monthly_labels = []
+
+    for i in range(5, -1, -1):  # Last 6 months
+        month_date = today - timedelta(days=30*i)
+        month_start = month_date.replace(day=1)
+
+        # Calculate next month start
+        if month_date.month == 12:
+            month_end = month_date.replace(year=month_date.year + 1, month=1, day=1)
+        else:
+            month_end = month_date.replace(month=month_date.month + 1, day=1)
+
+        # Get refrigerant added in this month
+        month_logs = ServiceLog.query.filter(
+            ServiceLog.service_date >= month_start,
+            ServiceLog.service_date < month_end
+        ).all()
+
+        month_total = sum([log.refrigerant_added for log in month_logs if log.refrigerant_added])
+        monthly_usage.append(round(month_total, 2))
+        monthly_labels.append(month_start.strftime('%b %Y'))
+
+    # === TECHNICIAN-SPECIFIC DATA ===
+    # Recent service logs (for technicians to track their work)
+    technician_recent_logs = ServiceLog.query.order_by(desc(ServiceLog.service_date)).limit(10).all()
+
+    # Recent leak inspections
+    recent_leak_inspections = LeakInspection.query.order_by(desc(LeakInspection.inspection_date)).limit(10).all()
+
+    # Equipment needing service soon
+    equipment_needing_service = []
+    for equip in equipment_list:
+        last_service = ServiceLog.query.filter_by(equipment_id=equip.id).order_by(desc(ServiceLog.service_date)).first()
+        if last_service:
+            days_since_service = (today - last_service.service_date).days
+            if days_since_service > 60:  # Equipment not serviced in 60+ days
+                equipment_needing_service.append({
+                    'equipment': equip,
+                    'last_service_date': last_service.service_date,
+                    'days_since': days_since_service
+                })
+
+    # === AUDITOR-SPECIFIC DATA ===
+    # Recent compliance documents
+    recent_documents = Document.query.order_by(desc(Document.uploaded_at)).limit(10).all()
+
+    # All active alerts for audit review
+    all_active_alerts = ComplianceAlert.query.filter_by(status='Active').order_by(desc(ComplianceAlert.alert_date)).all()
+
     return render_template('dashboard.html',
                            total_equipment=total_equipment,
                            total_technicians=total_technicians,
@@ -332,7 +542,24 @@ def index():
                            recent_services=recent_services,
                            upcoming_inspections=upcoming_inspections,
                            alerts=alerts,
-                           low_inventory=low_inventory)
+                           low_inventory=low_inventory,
+                           # Compliance metrics (Manager/Admin)
+                           compliance_percentage=compliance_percentage,
+                           compliant_equipment=compliant_equipment,
+                           critical_alerts=critical_alerts,
+                           warning_alerts=warning_alerts,
+                           upcoming_reports_count=upcoming_reports_count,
+                           total_recovered=round(total_recovered, 2),
+                           recovery_count=recovery_count,
+                           monthly_usage=monthly_usage,
+                           monthly_labels=monthly_labels,
+                           # Technician-specific data
+                           technician_recent_logs=technician_recent_logs,
+                           recent_leak_inspections=recent_leak_inspections,
+                           equipment_needing_service=equipment_needing_service,
+                           # Auditor-specific data
+                           recent_documents=recent_documents,
+                           all_active_alerts=all_active_alerts)
 
 
 # ============================================================================
@@ -342,8 +569,26 @@ def index():
 @app.route('/equipment')
 def equipment_list():
     """List all equipment"""
-    equipment = Equipment.query.all()
-    return render_template('equipment_list.html', equipment=equipment)
+    # Get search parameter if provided
+    search_query = request.args.get('search', '').strip()
+
+    if search_query:
+        # Search by equipment_id or name
+        equipment = Equipment.query.filter(
+            (Equipment.equipment_id.contains(search_query)) |
+            (Equipment.name.contains(search_query))
+        ).all()
+    else:
+        equipment = Equipment.query.all()
+
+    return render_template('equipment_list.html', equipment=equipment, search_query=search_query)
+
+
+@app.route('/equipment/scanner')
+@login_required
+def equipment_scanner():
+    """QR/Barcode scanner for equipment lookup"""
+    return render_template('equipment_scanner.html')
 
 
 @app.route('/equipment/<int:id>')
@@ -842,14 +1087,14 @@ def ai_leak_risks():
     """AI-powered leak risk analysis page"""
     if not AI_AVAILABLE or not AIConfig.ENABLED:
         flash('AI features not enabled. Set AI_ENABLED=true and ANTHROPIC_API_KEY environment variables.', 'warning')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     try:
         risks = get_equipment_at_risk(top_n=20)
         return render_template('ai_leak_risks.html', risks=risks, ai_enabled=AIConfig.ENABLED)
     except Exception as e:
         flash(f'Error getting AI predictions: {str(e)}', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
 
 @app.route('/ai/natural-language-service', methods=['GET', 'POST'])
@@ -897,7 +1142,7 @@ def ai_chatbot():
     """EPA Compliance chatbot page"""
     if not AI_AVAILABLE or not AIConfig.ENABLED:
         flash('AI features not enabled. Set AI_ENABLED=true and ANTHROPIC_API_KEY environment variables.', 'warning')
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
 
     answer_data = None
 
@@ -1235,6 +1480,44 @@ def api_documents_technician(technician_id):
         'size': d.file_size,
         'uploaded_at': d.uploaded_at.isoformat()
     } for d in documents])
+
+
+# ============================================================================
+# SETTINGS
+# ============================================================================
+
+@app.route('/settings')
+@login_required
+def settings():
+    """User settings and system preferences"""
+    # Get technician statistics for managers/admins
+    total_technicians = 0
+    active_technicians = 0
+    expiring_certs = 0
+
+    if get_current_user() and get_current_user().role in ['compliance_manager', 'admin']:
+        total_technicians = Technician.query.count()
+        active_technicians = Technician.query.filter_by(status='Active').count()
+
+        # Count certifications expiring in next 30 days
+        thirty_days_from_now = datetime.now().date() + timedelta(days=30)
+        expiring_certs = Technician.query.filter(
+            Technician.expiration_date <= thirty_days_from_now,
+            Technician.status == 'Active'
+        ).count()
+
+    return render_template('settings.html',
+                         total_technicians=total_technicians,
+                         active_technicians=active_technicians,
+                         expiring_certs=expiring_certs)
+
+
+@app.route('/settings/update', methods=['POST'])
+@login_required
+def settings_update():
+    """Update user settings (placeholder for future implementation)"""
+    flash('Settings update functionality coming soon!', 'info')
+    return redirect(url_for('settings'))
 
 
 if __name__ == '__main__':

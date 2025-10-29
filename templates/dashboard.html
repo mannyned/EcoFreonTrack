@@ -3,8 +3,893 @@
 {% block title %}Dashboard - EPA 608 Tracker{% endblock %}
 
 {% block content %}
-<h1>Compliance Dashboard</h1>
+<!-- Layer Indicator: Dashboard -->
+<div class="layer-indicator layer-dashboard">
+    <div class="layer-indicator-content">
+        <span class="layer-icon">🏠</span>
+        <div class="layer-info">
+            <h1 class="layer-name">Dashboard</h1>
+            <p class="layer-description">Summary, Alerts & System Overview</p>
+        </div>
+    </div>
+</div>
 
+<!-- Welcome Header -->
+<div class="card">
+    <h2>Welcome{% if current_user %}, {{ current_user.full_name }}{% endif %}!</h2>
+    <p style="font-size: 1.1rem; color: #666;">
+        {% if current_user %}
+            Role: <span class="badge badge-info">{{ current_user.role|replace('_', ' ')|title }}</span>
+        {% endif %}
+    </p>
+</div>
+
+<!-- ========================================== -->
+<!-- TECHNICIAN DASHBOARD VIEW -->
+<!-- ========================================== -->
+{% if current_user and current_user.role == 'technician' %}
+
+<!-- Quick Entry AI Feature -->
+<div class="card ai-quick-entry-card">
+    <div class="quick-entry-header">
+        <div class="quick-entry-title">
+            <h2>⚡ AI Quick Entry</h2>
+            <span class="ai-badge">Beta</span>
+        </div>
+        <p style="color: #666; margin-bottom: 0;">Describe your service in plain English - AI will create the log for you</p>
+    </div>
+
+    <div class="quick-entry-content">
+        <div class="quick-entry-form">
+            <form action="{{ url_for('ai_natural_language_service') }}" method="GET">
+                <div class="quick-entry-input-wrapper">
+                    <textarea
+                        name="query"
+                        class="quick-entry-textarea"
+                        placeholder='Example: "Serviced the HVAC unit on the 3rd floor, added 5 lbs of R-410A, leak rate was 8%"'
+                        rows="3"></textarea>
+                    <button type="submit" class="quick-entry-submit-btn">
+                        <span class="btn-icon">✨</span>
+                        <span class="btn-text">Generate Service Log</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="quick-entry-benefits">
+            <div class="benefit-item">
+                <span class="benefit-icon">⚡</span>
+                <span class="benefit-text">Save time with natural language input</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">🎯</span>
+                <span class="benefit-text">AI auto-fills equipment & refrigerant details</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">✅</span>
+                <span class="benefit-text">Ensures EPA compliance formatting</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- My Recent Jobs -->
+<div class="card">
+    <h2>🔧 My Recent Jobs</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Service logs and maintenance tasks</p>
+
+    {% if technician_recent_logs %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Equipment</th>
+                <th>Service Type</th>
+                <th>Refrigerant Added</th>
+                <th>Refrigerant Recovered</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in technician_recent_logs %}
+            <tr>
+                <td>{{ log.service_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    {% if log.equipment %}
+                    <a href="{{ url_for('equipment_detail', id=log.equipment.id) }}">
+                        {{ log.equipment.equipment_name }}
+                    </a>
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </td>
+                <td><span class="badge badge-info">{{ log.service_type }}</span></td>
+                <td>{{ log.refrigerant_added if log.refrigerant_added else 0 }} lbs</td>
+                <td>{{ log.refrigerant_recovered if log.refrigerant_recovered else 0 }} lbs</td>
+                <td>
+                    <a href="{{ url_for('service_log_detail', id=log.id) }}" class="btn btn-sm btn-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #999;">No service logs available</p>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{{ url_for('service_log_add') }}" class="btn btn-primary">➕ Add New Service Log</a>
+        <a href="{{ url_for('service_log_list') }}" class="btn btn-secondary">View All Logs</a>
+    </div>
+</div>
+
+<!-- Recent Leak Inspections -->
+<div class="card">
+    <h2>🔍 Recent Leak Inspections</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Leak detection and inspection records</p>
+
+    {% if recent_leak_inspections %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Equipment</th>
+                <th>Leak Rate</th>
+                <th>Status</th>
+                <th>Next Inspection</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inspection in recent_leak_inspections %}
+            <tr>
+                <td>{{ inspection.inspection_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    {% if inspection.equipment %}
+                    <a href="{{ url_for('equipment_detail', id=inspection.equipment.id) }}">
+                        {{ inspection.equipment.equipment_name }}
+                    </a>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="{% if inspection.leak_rate_percent >= 30 %}leak-rate-critical{% elif inspection.leak_rate_percent >= 10 %}leak-rate-minor{% else %}leak-rate-safe{% endif %}">
+                        {{ inspection.leak_rate_percent }}%
+                    </span>
+                </td>
+                <td>
+                    {% if inspection.leak_detected %}
+                    <span class="badge badge-danger">Leak Detected</span>
+                    {% else %}
+                    <span class="badge badge-success">No Leak</span>
+                    {% endif %}
+                </td>
+                <td>{{ inspection.next_inspection_date.strftime('%Y-%m-%d') if inspection.next_inspection_date else 'N/A' }}</td>
+                <td>
+                    <a href="{{ url_for('leak_inspection_detail', id=inspection.id) }}" class="btn btn-sm btn-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #999;">No leak inspections available</p>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{{ url_for('leak_inspection_add') }}" class="btn btn-primary">➕ Add New Inspection</a>
+        <a href="{{ url_for('leak_inspection_list') }}" class="btn btn-secondary">View All Inspections</a>
+    </div>
+</div>
+
+<!-- Equipment Needing Service -->
+<div class="card">
+    <h2>⚠️ Equipment Needing Service</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Equipment not serviced in 60+ days</p>
+
+    {% if equipment_needing_service %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Equipment</th>
+                <th>Last Service Date</th>
+                <th>Days Since Service</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in equipment_needing_service %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('equipment_detail', id=item.equipment.id) }}">
+                        {{ item.equipment.equipment_name }}
+                    </a>
+                </td>
+                <td>{{ item.last_service_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <span class="badge {% if item.days_since > 90 %}badge-danger{% else %}badge-warning{% endif %}">
+                        {{ item.days_since }} days
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('service_log_add') }}?equipment_id={{ item.equipment.id }}" class="btn btn-sm btn-primary">Schedule Service</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #28a745; font-weight: 600;">✓ All equipment is up to date with service</p>
+    {% endif %}
+</div>
+
+<!-- Quick Actions (Technician) -->
+<div class="card">
+    <h2>⚡ Quick Actions</h2>
+    <div class="action-grid">
+        <a href="{{ url_for('service_log_add') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📋</div>
+            <div class="label">New Service Log</div>
+            <div class="description">Record maintenance</div>
+        </a>
+        <a href="{{ url_for('leak_inspection_add') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">🔍</div>
+            <div class="label">New Inspection</div>
+            <div class="description">Log leak detection</div>
+        </a>
+        <a href="{{ url_for('equipment_list') }}" class="action-button" style="border-top-color: #00B4A0;">
+            <div class="icon">📦</div>
+            <div class="label">View Equipment</div>
+            <div class="description">Browse all systems</div>
+        </a>
+        <a href="{{ url_for('inventory_list') }}" class="action-button" style="border-top-color: #673ab7;">
+            <div class="icon">📦</div>
+            <div class="label">Refrigerant Stock</div>
+            <div class="description">Check inventory</div>
+        </a>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MANAGER/ADMIN DASHBOARD VIEW -->
+<!-- ========================================== -->
+{% elif current_user and (current_user.role == 'compliance_manager' or current_user.role == 'admin') %}
+
+<!-- Three-Column Dashboard Layout -->
+<div class="three-column-dashboard">
+
+    <!-- LEFT SIDEBAR - Recent Activity & Account (Manager View) -->
+    <aside class="dashboard-sidebar">
+        <div class="sidebar-section">
+            <h3 class="sidebar-title">Recent Activity</h3>
+            <div class="activity-list">
+                <div class="activity-item">
+                    <div class="activity-icon">✅</div>
+                    <div class="activity-text">
+                        <div class="activity-title">Inspection Completed</div>
+                        <div class="activity-time">2 hours ago</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon">⚠️</div>
+                    <div class="activity-text">
+                        <div class="activity-title">New Leak Alert</div>
+                        <div class="activity-time">5 hours ago</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon">📋</div>
+                    <div class="activity-text">
+                        <div class="activity-title">Report Generated</div>
+                        <div class="activity-time">1 day ago</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <h3 class="sidebar-title">My Account</h3>
+            <div class="account-info">
+                <div class="account-avatar">{{ current_user.full_name[0] if current_user and current_user.full_name else 'M' }}</div>
+                <div class="account-details">
+                    <div class="account-name">{{ current_user.full_name if current_user else 'Manager' }}</div>
+                    <div class="account-role">{{ current_user.role|replace('_', ' ')|title if current_user else 'Compliance Manager' }}</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CENTER PANEL - Core Compliance Data -->
+    <main class="dashboard-center">
+
+        <!-- Compliance Metrics Grid with AI Prediction -->
+<div class="card">
+    <h2>📊 Compliance Snapshot</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Quick overview of your EPA 608 compliance status</p>
+
+    <div class="compliance-snapshot-layout">
+        <!-- Left: Compliance Metrics (2x2 grid) -->
+        <div class="compliance-grid-compact">
+            <!-- 1. Compliance Percentage -->
+            <div class="compliance-card {% if compliance_percentage >= 90 %}compliance-success{% elif compliance_percentage >= 70 %}compliance-warning{% else %}compliance-danger{% endif %}">
+                <div class="compliance-card-icon">
+                    {% if compliance_percentage >= 90 %}✓{% elif compliance_percentage >= 70 %}⚠{% else %}🔴{% endif %}
+                </div>
+                <div class="compliance-card-content">
+                    <div class="compliance-card-value">{{ compliance_percentage }}%</div>
+                    <div class="compliance-card-label">Systems in Compliance</div>
+                    <div class="compliance-card-detail">{{ compliant_equipment }} of {{ total_equipment }} equipment</div>
+                </div>
+            </div>
+
+            <!-- 2. Active Leak Alerts -->
+            <div class="compliance-card {% if critical_alerts > 0 %}compliance-danger{% elif warning_alerts > 0 %}compliance-warning{% else %}compliance-success{% endif %}">
+                <div class="compliance-card-icon">🚨</div>
+                <div class="compliance-card-content">
+                    <div class="compliance-card-value">{{ critical_alerts + warning_alerts }}</div>
+                    <div class="compliance-card-label">Active Leak Alerts</div>
+                    <div class="compliance-card-detail">
+                        {% if critical_alerts > 0 %}
+                        <span style="color: #dc3545; font-weight: 600;">{{ critical_alerts }} Critical</span>
+                        {% endif %}
+                        {% if warning_alerts > 0 %}
+                        <span style="color: #ff9800;">{{ warning_alerts }} Warning</span>
+                        {% endif %}
+                        {% if critical_alerts == 0 and warning_alerts == 0 %}
+                        <span style="color: #28a745;">All systems normal</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Upcoming EPA Reports -->
+            <div class="compliance-card compliance-info">
+                <div class="compliance-card-icon">📄</div>
+                <div class="compliance-card-content">
+                    <div class="compliance-card-value">{{ upcoming_reports_count }}</div>
+                    <div class="compliance-card-label">Upcoming EPA Reports</div>
+                    <div class="compliance-card-detail">Due in next 30 days</div>
+                </div>
+            </div>
+
+            <!-- 4. Refrigerant Recovery Summary -->
+            <div class="compliance-card compliance-success">
+                <div class="compliance-card-icon">♻️</div>
+                <div class="compliance-card-content">
+                    <div class="compliance-card-value">{{ total_recovered }} lbs</div>
+                    <div class="compliance-card-label">Refrigerant Recovered</div>
+                    <div class="compliance-card-detail">{{ recovery_count }} recovery operations (30 days)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Leak Prediction AI Summary -->
+        <div class="ai-prediction-summary">
+            <div class="ai-summary-header">
+                <h3>🤖 Leak Prediction AI</h3>
+                <span class="ai-badge">Beta</span>
+            </div>
+
+            <div class="ai-risk-display-compact">
+                <div class="risk-percentage-large">
+                    <span class="risk-value-large">{{ ai_leak_risk_percent if ai_leak_risk_percent else 12 }}%</span>
+                    <span class="risk-label-large">Predicted Leak Risk</span>
+                </div>
+
+                <div class="confidence-indicator-compact">
+                    <div class="confidence-label-compact">
+                        <span>Model Confidence</span>
+                        <span class="confidence-value-compact">{{ ai_confidence if ai_confidence else 87 }}%</span>
+                    </div>
+                    <div class="confidence-bar-compact">
+                        <div class="confidence-fill-compact" style="width: {{ ai_confidence if ai_confidence else 87 }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="key-factors-compact">
+                <div class="factor-item-compact factor-high">
+                    <span class="factor-icon-compact">📈</span>
+                    <span class="factor-text-compact">Equipment age: 8.3 years avg</span>
+                </div>
+                <div class="factor-item-compact factor-medium">
+                    <span class="factor-icon-compact">🌡️</span>
+                    <span class="factor-text-compact">3 units in extreme conditions</span>
+                </div>
+            </div>
+
+            <a href="{{ url_for('ai_leak_risks') }}" class="ai-view-details-btn">
+                View Full Analysis →
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Refrigerant Usage Trend Chart (Manager/Auditor View) -->
+<div class="card">
+    <h2>📈 Refrigerant Usage Trend</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Monthly refrigerant additions over the last 6 months</p>
+    <div class="chart-container">
+        <canvas id="refrigerantUsageChart"></canvas>
+    </div>
+</div>
+
+<script>
+// Refrigerant Usage Chart
+const ctx = document.getElementById('refrigerantUsageChart').getContext('2d');
+const refrigerantUsageChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ monthly_labels|tojson }},
+        datasets: [{
+            label: 'Refrigerant Added (lbs)',
+            data: {{ monthly_usage|tojson }},
+            borderColor: '#00B4A0',
+            backgroundColor: 'rgba(0, 180, 160, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#00B4A0',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    font: {
+                        size: 14,
+                        weight: '600'
+                    },
+                    padding: 15
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                titleFont: {
+                    size: 14,
+                    weight: 'bold'
+                },
+                bodyFont: {
+                    size: 13
+                },
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + context.parsed.y + ' lbs';
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    font: {
+                        size: 12
+                    },
+                    callback: function(value) {
+                        return value + ' lbs';
+                    }
+                },
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)'
+                }
+            },
+            x: {
+                ticks: {
+                    font: {
+                        size: 12
+                    }
+                },
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+</script>
+
+<!-- ========================================== -->
+<!-- AUDITOR DASHBOARD VIEW -->
+<!-- ========================================== -->
+{% elif current_user and current_user.role == 'auditor' %}
+
+<!-- Auditor Read-Only Notice -->
+<div class="leak-rate-safe" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 5px solid #ff9800;">
+    <div class="leak-rate-indicator">
+        <span class="icon">📋</span>
+        <div style="flex: 1;">
+            <strong>Auditor Mode - Read-Only Access</strong><br>
+            <span style="font-size: 0.95rem; color: #666;">
+                You have view-only access to all compliance records, logs, and reports. No editing capabilities.
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Compliance Overview (Auditor) -->
+<div class="card">
+    <h2>📊 Compliance Overview</h2>
+    <div class="compliance-grid">
+        <!-- 1. Compliance Percentage -->
+        <div class="compliance-card {% if compliance_percentage >= 90 %}compliance-success{% elif compliance_percentage >= 70 %}compliance-warning{% else %}compliance-danger{% endif %}">
+            <div class="compliance-card-icon">
+                {% if compliance_percentage >= 90 %}✓{% elif compliance_percentage >= 70 %}⚠{% else %}🔴{% endif %}
+            </div>
+            <div class="compliance-card-content">
+                <div class="compliance-card-value">{{ compliance_percentage }}%</div>
+                <div class="compliance-card-label">Systems in Compliance</div>
+                <div class="compliance-card-detail">{{ compliant_equipment }} of {{ total_equipment }} equipment</div>
+            </div>
+        </div>
+
+        <!-- 2. Active Alerts -->
+        <div class="compliance-card {% if critical_alerts > 0 %}compliance-danger{% elif warning_alerts > 0 %}compliance-warning{% else %}compliance-success{% endif %}">
+            <div class="compliance-card-icon">🚨</div>
+            <div class="compliance-card-content">
+                <div class="compliance-card-value">{{ all_active_alerts|length }}</div>
+                <div class="compliance-card-label">Active Alerts</div>
+                <div class="compliance-card-detail">
+                    {% if critical_alerts > 0 %}{{ critical_alerts }} Critical{% endif %}
+                    {% if warning_alerts > 0 %} / {{ warning_alerts }} Warning{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Total Equipment -->
+        <div class="compliance-card compliance-info">
+            <div class="compliance-card-icon">📦</div>
+            <div class="compliance-card-content">
+                <div class="compliance-card-value">{{ total_equipment }}</div>
+                <div class="compliance-card-label">Total Equipment</div>
+                <div class="compliance-card-detail">Under EPA 608 monitoring</div>
+            </div>
+        </div>
+
+        <!-- 4. Documents Available -->
+        <div class="compliance-card compliance-success">
+            <div class="compliance-card-icon">📄</div>
+            <div class="compliance-card-content">
+                <div class="compliance-card-value">{{ recent_documents|length }}</div>
+                <div class="compliance-card-label">Recent Documents</div>
+                <div class="compliance-card-detail">Available for review</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Service Logs (Read-Only) -->
+<div class="card">
+    <h2>📋 Recent Service Logs</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">View-only access to service and maintenance records</p>
+
+    {% if technician_recent_logs %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Equipment</th>
+                <th>Service Type</th>
+                <th>Technician</th>
+                <th>Refrigerant Added</th>
+                <th>Refrigerant Recovered</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in technician_recent_logs %}
+            <tr>
+                <td>{{ log.service_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    {% if log.equipment %}
+                    {{ log.equipment.equipment_name }}
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </td>
+                <td><span class="badge badge-info">{{ log.service_type }}</span></td>
+                <td>
+                    {% if log.technician %}
+                    {{ log.technician.name }}
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </td>
+                <td>{{ log.refrigerant_added if log.refrigerant_added else 0 }} lbs</td>
+                <td>{{ log.refrigerant_recovered if log.refrigerant_recovered else 0 }} lbs</td>
+                <td>
+                    <a href="{{ url_for('service_log_detail', id=log.id) }}" class="btn btn-sm btn-primary">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #999;">No service logs available</p>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{{ url_for('service_log_list') }}" class="btn btn-secondary">View All Service Logs</a>
+    </div>
+</div>
+
+<!-- Active Compliance Alerts (Read-Only) -->
+<div class="card">
+    <h2>🚨 Active Compliance Alerts</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Current compliance issues requiring attention</p>
+
+    {% if all_active_alerts %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Severity</th>
+                <th>Equipment</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alert in all_active_alerts %}
+            <tr>
+                <td>{{ alert.alert_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <span class="badge {% if alert.severity == 'Critical' %}badge-danger{% elif alert.severity == 'Warning' %}badge-warning{% else %}badge-info{% endif %}">
+                        {{ alert.severity }}
+                    </span>
+                </td>
+                <td>
+                    {% if alert.equipment %}
+                    {{ alert.equipment.equipment_name }}
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </td>
+                <td>{{ alert.description }}</td>
+                <td><span class="badge badge-warning">{{ alert.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('alert_detail', id=alert.id) }}" class="btn btn-sm btn-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #28a745; font-weight: 600;">✓ No active compliance alerts</p>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{{ url_for('alert_list') }}" class="btn btn-secondary">View All Alerts</a>
+    </div>
+</div>
+
+<!-- Available Documents (PDFs) -->
+<div class="card">
+    <h2>📄 Available Documents & Reports</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Compliance documents available for download</p>
+
+    {% if recent_documents %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Document Name</th>
+                <th>Type</th>
+                <th>Upload Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in recent_documents %}
+            <tr>
+                <td>{{ doc.filename }}</td>
+                <td><span class="badge badge-info">{{ doc.document_type }}</span></td>
+                <td>{{ doc.uploaded_at.strftime('%Y-%m-%d') if doc.uploaded_at else 'N/A' }}</td>
+                <td>
+                    <a href="{{ url_for('document_download', id=doc.id) }}" class="btn btn-sm btn-success">Download</a>
+                    <a href="{{ url_for('document_detail', id=doc.id) }}" class="btn btn-sm btn-primary">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #999;">No documents available</p>
+    {% endif %}
+
+    <div style="margin-top: 1.5rem;">
+        <a href="{{ url_for('document_list') }}" class="btn btn-secondary">View All Documents</a>
+        <a href="{{ url_for('reports') }}" class="btn btn-primary">Generate New Report</a>
+    </div>
+</div>
+
+<!-- Export Options (Auditor) -->
+<div class="card">
+    <h2>💾 Export Options</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Download compliance data for audit purposes</p>
+    <div class="action-grid">
+        <a href="{{ url_for('reports') }}" class="action-button" style="border-top-color: #673ab7;">
+            <div class="icon">📊</div>
+            <div class="label">Export All Reports</div>
+            <div class="description">PDF format, EPA 608/609 compliant</div>
+        </a>
+        <a href="{{ url_for('service_log_list') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">📋</div>
+            <div class="label">Export Service Logs</div>
+            <div class="description">CSV format for analysis</div>
+        </a>
+        <a href="{{ url_for('equipment_list') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📦</div>
+            <div class="label">Export Equipment Data</div>
+            <div class="description">JSON format with full history</div>
+        </a>
+        <a href="{{ url_for('document_list') }}" class="action-button" style="border-top-color: #00B4A0;">
+            <div class="icon">📄</div>
+            <div class="label">View All Documents</div>
+            <div class="description">Certificates & reports archive</div>
+        </a>
+    </div>
+</div>
+
+    </main>
+    <!-- End Center Panel -->
+
+    <!-- RIGHT PANEL - AI Insights -->
+    <aside class="dashboard-ai-panel">
+        <!-- AI Leak Prediction Card -->
+        <div class="ai-card">
+            <div class="ai-card-header">
+                <h3>🤖 AI Leak Prediction</h3>
+                <span class="ai-badge">Beta</span>
+            </div>
+
+            <div class="ai-risk-display">
+                <div class="risk-percentage">
+                    <span class="risk-value">{{ ai_leak_risk_percent if ai_leak_risk_percent else 12 }}%</span>
+                    <span class="risk-label">Leak Risk</span>
+                </div>
+
+                <div class="confidence-indicator">
+                    <div class="confidence-label">
+                        <span>Confidence Level</span>
+                        <span class="confidence-value">{{ ai_confidence if ai_confidence else 87 }}%</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: {{ ai_confidence if ai_confidence else 87 }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ai-insights-section">
+                <button class="collapsible-trigger" onclick="toggleAIInsights()">
+                    <span>🔍 View Key Factors</span>
+                    <span class="collapse-icon">▼</span>
+                </button>
+                <div class="collapsible-content" id="aiInsightsContent">
+                    <ul class="ai-factors-list">
+                        <li class="factor-item factor-high">
+                            <span class="factor-icon">📈</span>
+                            <span class="factor-text">Equipment age averaging 8.3 years</span>
+                        </li>
+                        <li class="factor-item factor-medium">
+                            <span class="factor-icon">🌡️</span>
+                            <span class="factor-text">3 units operating in extreme conditions</span>
+                        </li>
+                        <li class="factor-item factor-low">
+                            <span class="factor-icon">🔧</span>
+                            <span class="factor-text">Regular maintenance compliance: 94%</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <a href="{{ url_for('ai_leak_risks') }}" class="ai-action-btn">
+                View Full Analysis →
+            </a>
+        </div>
+
+        <!-- Recommended Actions Card -->
+        <div class="ai-card">
+            <div class="ai-card-header">
+                <h3>💡 Recommended Actions</h3>
+            </div>
+
+            <div class="recommendations-list">
+                <div class="recommendation-item">
+                    <div class="rec-icon">🔍</div>
+                    <div class="rec-content">
+                        <div class="rec-title">Schedule Inspection</div>
+                        <div class="rec-subtitle">3 units due for quarterly check</div>
+                    </div>
+                    <button class="rec-action">Do</button>
+                </div>
+
+                <div class="recommendation-item">
+                    <div class="rec-icon">📋</div>
+                    <div class="rec-content">
+                        <div class="rec-title">Complete EPA Report</div>
+                        <div class="rec-subtitle">Q4 2025 report due in 15 days</div>
+                    </div>
+                    <button class="rec-action">Do</button>
+                </div>
+
+                <div class="recommendation-item">
+                    <div class="rec-icon">♻️</div>
+                    <div class="rec-content">
+                        <div class="rec-title">Refrigerant Recovery</div>
+                        <div class="rec-subtitle">2 recovery tanks at 80% capacity</div>
+                    </div>
+                    <button class="rec-action">Do</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Assistant Quick Access -->
+        <div class="ai-card ai-assistant-card">
+            <div class="assistant-icon">💬</div>
+            <div class="assistant-text">
+                <h4>EPA Compliance Assistant</h4>
+                <p>Ask me anything about regulations, leak rates, or reporting requirements</p>
+            </div>
+            <a href="{{ url_for('ai_chatbot') }}" class="assistant-btn">
+                Open Chat
+            </a>
+        </div>
+    </aside>
+    <!-- End AI Panel -->
+
+</div>
+<!-- End Three-Column Dashboard -->
+
+<script>
+function toggleAIInsights() {
+    const content = document.getElementById('aiInsightsContent');
+    const trigger = content.previousElementSibling;
+    const icon = trigger.querySelector('.collapse-icon');
+
+    if (content.style.maxHeight) {
+        content.style.maxHeight = null;
+        icon.style.transform = 'rotate(0deg)';
+    } else {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        icon.style.transform = 'rotate(180deg)';
+    }
+}
+</script>
+
+{% endif %}
+
+<!-- EPA Leak Rate Legend -->
+<div class="card">
+    <h2>📊 EPA 608 Leak Rate Thresholds</h2>
+    <div class="leak-threshold-legend">
+        <div class="threshold-item threshold-safe">
+            <div style="font-size: 2rem;">✓</div>
+            <div style="font-size: 0.9rem; margin-top: 0.5rem;">Safe</div>
+            <div style="font-size: 1.2rem; font-weight: 700; margin-top: 0.25rem;">&lt; 10%</div>
+        </div>
+        <div class="threshold-item threshold-minor">
+            <div style="font-size: 2rem;">⚠</div>
+            <div style="font-size: 0.9rem; margin-top: 0.5rem;">Minor Leak</div>
+            <div style="font-size: 1.2rem; font-weight: 700; margin-top: 0.25rem;">10-20%</div>
+        </div>
+        <div class="threshold-item threshold-critical">
+            <div style="font-size: 2rem;">🔴</div>
+            <div style="font-size: 0.9rem; margin-top: 0.5rem;">Critical</div>
+            <div style="font-size: 1.2rem; font-weight: 700; margin-top: 0.25rem;">&gt; 30%</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Grid -->
 <div class="stats-grid">
     <div class="stat-card success">
         <h3>Active Equipment</h3>
@@ -27,65 +912,161 @@
     </div>
 </div>
 
+<!-- Role-Based Quick Actions -->
+{% if current_user %}
+<div class="card">
+    <h2>⚡ Quick Actions for {{ current_user.role|replace('_', ' ')|title }}</h2>
+
+    {% if current_user.role == 'technician' %}
+    <!-- Technician View -->
+    <div class="action-grid">
+        <a href="{{ url_for('service_log_add') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📝</div>
+            <div class="label">Log Service</div>
+            <div class="description">Logs → Service Entry</div>
+        </a>
+        <a href="{{ url_for('leak_inspection_add') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">🔍</div>
+            <div class="label">Leak Inspection</div>
+            <div class="description">Logs → Inspection Entry</div>
+        </a>
+        <a href="{{ url_for('equipment_scanner') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">📦</div>
+            <div class="label">Scan Equipment</div>
+            <div class="description">Equipment → QR Scanner</div>
+        </a>
+        <a href="{{ url_for('document_upload') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📄</div>
+            <div class="label">Upload Document</div>
+            <div class="description">Logs → Documents</div>
+        </a>
+    </div>
+
+    {% elif current_user.role == 'compliance_manager' or current_user.role == 'admin' %}
+    <!-- Manager/Admin View -->
+    <div class="action-grid">
+        <a href="{{ url_for('reports') }}" class="action-button" style="border-top-color: #673ab7;">
+            <div class="icon">📊</div>
+            <div class="label">EPA Reports</div>
+            <div class="description">Reports → Generate</div>
+        </a>
+        <a href="{{ url_for('alert_list') }}" class="action-button" style="border-top-color: #00B4A0;">
+            <div class="icon">🚨</div>
+            <div class="label">Review Alerts</div>
+            <div class="description">Dashboard → Alerts</div>
+        </a>
+        <a href="{{ url_for('equipment_add') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">➕</div>
+            <div class="label">Add Equipment</div>
+            <div class="description">Equipment → New</div>
+        </a>
+        <a href="{{ url_for('inventory_list') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">📦</div>
+            <div class="label">Inventory</div>
+            <div class="description">Equipment → Stock</div>
+        </a>
+    </div>
+
+    {% elif current_user.role == 'auditor' %}
+    <!-- Auditor View (Read-Only) -->
+    <div class="leak-rate-safe" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 5px solid #ff9800;">
+        <div class="leak-rate-indicator">
+            <span class="icon">📋</span>
+            <div style="flex: 1;">
+                <strong>Auditor Mode - Read-Only Access</strong><br>
+                <span style="font-size: 0.95rem; color: #666;">
+                    You have view-only access to all compliance records, logs, and reports. No editing capabilities.
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="action-grid">
+        <a href="{{ url_for('service_log_list') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📋</div>
+            <div class="label">View Service Logs</div>
+            <div class="description">Logs → Audit Trail</div>
+        </a>
+        <a href="{{ url_for('leak_inspection_list') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">🔍</div>
+            <div class="label">View Inspections</div>
+            <div class="description">Logs → Compliance Records</div>
+        </a>
+        <a href="{{ url_for('reports') }}" class="action-button" style="border-top-color: #673ab7;">
+            <div class="icon">📊</div>
+            <div class="label">EPA Reports</div>
+            <div class="description">Reports → View & Export</div>
+        </a>
+        <a href="{{ url_for('equipment_list') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">📦</div>
+            <div class="label">View Equipment</div>
+            <div class="description">Equipment → Compliance Status</div>
+        </a>
+        <a href="{{ url_for('technician_list') }}" class="action-button" style="border-top-color: #dc3545;">
+            <div class="icon">🔧</div>
+            <div class="label">View Certifications</div>
+            <div class="description">User → Technician Records</div>
+        </a>
+        <a href="{{ url_for('document_list') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📄</div>
+            <div class="label">View Documents</div>
+            <div class="description">Logs → Certificates & Reports</div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Critical Alerts (Pulsing Animation) -->
 {% if active_alerts > 0 %}
 <div class="card">
-    <h2>Active Compliance Alerts</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Severity</th>
-                <th>Title</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for alert in alerts[:5] %}
-            <tr>
-                <td>{{ alert.alert_date }}</td>
-                <td>{{ alert.alert_type }}</td>
-                <td><span class="badge badge-{{ 'danger' if alert.severity == 'Critical' else 'warning' }}">{{ alert.severity }}</span></td>
-                <td>{{ alert.title }}</td>
-                <td><a href="{{ url_for('alert_list') }}" class="btn btn-sm btn-primary">View</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h2 style="color: #dc3545;">🚨 Active Compliance Alerts</h2>
+    {% for alert in alerts[:5] %}
+    <div class="{% if alert.severity == 'Critical' %}leak-rate-critical{% else %}leak-rate-warning{% endif %}">
+        <div class="leak-rate-indicator">
+            <span class="icon">{% if alert.severity == 'Critical' %}🔴{% else %}⚠️{% endif %}</span>
+            <div style="flex: 1;">
+                <strong>{{ alert.title }}</strong><br>
+                <span style="font-size: 0.95rem; color: #666;">{{ alert.message[:100] }}...</span><br>
+                <small style="color: #999;">{{ alert.alert_date }} | {{ alert.alert_type }}</small>
+            </div>
+            <a href="{{ url_for('alert_list') }}" class="btn btn-danger">Review</a>
+        </div>
+    </div>
+    {% endfor %}
+    {% if alerts|length > 5 %}
     <div class="mt-2 text-right">
-        <a href="{{ url_for('alert_list') }}" class="btn btn-primary">View All Alerts</a>
+        <a href="{{ url_for('alert_list') }}" class="btn btn-primary btn-big">View All {{ alerts|length }} Alerts →</a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Upcoming Inspections -->
+{% if upcoming_inspections|length > 0 %}
+<div class="card">
+    <h2>⏰ Upcoming Inspections (Next 7 Days)</h2>
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        {% for item in upcoming_inspections %}
+        <div class="leak-rate-minor">
+            <div class="leak-rate-indicator">
+                <span class="icon">📅</span>
+                <div style="flex: 1;">
+                    <strong>{{ item.equipment.equipment_id }}</strong> - {{ item.equipment.name }}<br>
+                    <span style="font-size: 0.95rem;">Due: {{ item.next_date }}</span>
+                </div>
+                <a href="{{ url_for('leak_inspection_add') }}?equipment_id={{ item.equipment.id }}" class="btn btn-primary">Schedule</a>
+                <a href="{{ url_for('equipment_detail', id=item.equipment.id) }}" class="btn btn-secondary">Details</a>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
 
-{% if upcoming_inspections|length > 0 %}
+<!-- Recent Service Activity -->
 <div class="card">
-    <h2>Upcoming Inspections (Next 7 Days)</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Equipment ID</th>
-                <th>Equipment Name</th>
-                <th>Next Inspection Date</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in upcoming_inspections %}
-            <tr>
-                <td>{{ item.equipment.equipment_id }}</td>
-                <td>{{ item.equipment.name }}</td>
-                <td>{{ item.next_date }}</td>
-                <td><a href="{{ url_for('equipment_detail', id=item.equipment.id) }}" class="btn btn-sm btn-primary">View</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
-
-<div class="card">
-    <h2>Recent Service Activity</h2>
+    <h2>📋 Recent Service Activity</h2>
+    {% if recent_services|length > 0 %}
     <table>
         <thead>
             <tr>
@@ -110,36 +1091,955 @@
             {% endfor %}
         </tbody>
     </table>
+    {% else %}
+    <p style="text-align: center; color: #999; padding: 2rem;">No recent service activity</p>
+    {% endif %}
+    <div class="mt-2 text-right">
+        <a href="{{ url_for('service_log_list') }}" class="btn btn-primary">View All Service Logs →</a>
+    </div>
 </div>
 
+<!-- Low Inventory Warnings -->
 {% if low_inventory|length > 0 %}
 <div class="card">
-    <h2>Low Inventory Warnings</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Refrigerant</th>
-                <th>Type</th>
-                <th>On Hand</th>
-                <th>Reorder Level</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in low_inventory %}
-            <tr>
-                <td>{{ item.refrigerant_name }}</td>
-                <td>{{ item.refrigerant_type }}</td>
-                <td>{{ item.quantity_on_hand }} lbs</td>
-                <td>{{ item.reorder_level }} lbs</td>
-                <td><span class="badge badge-warning">Below Reorder Level</span></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h2 style="color: #ff9800;">⚠️ Low Inventory Warnings</h2>
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        {% for item in low_inventory %}
+        <div class="leak-rate-warning">
+            <div class="leak-rate-indicator">
+                <span class="icon">📦</span>
+                <div style="flex: 1;">
+                    <strong>{{ item.refrigerant_name }}</strong> ({{ item.refrigerant_type }})<br>
+                    <span style="font-size: 0.95rem;">
+                        On Hand: <strong>{{ item.quantity_on_hand }} lbs</strong> |
+                        Reorder Level: {{ item.reorder_level }} lbs
+                    </span>
+                </div>
+                <span class="badge badge-warning">Below Reorder Level</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
     <div class="mt-2 text-right">
-        <a href="{{ url_for('inventory_list') }}" class="btn btn-primary">Manage Inventory</a>
+        <a href="{{ url_for('inventory_list') }}" class="btn btn-primary btn-big">Manage Inventory →</a>
     </div>
 </div>
 {% endif %}
+
+<!-- Offline Indicator -->
+<div class="offline-indicator" id="offlineIndicator">
+    <span style="font-size: 1.5rem;">📡</span>
+    <span>Offline Mode - Data will sync when online</span>
+</div>
+
+<!-- Offline Detection Script -->
+<script>
+    // Detect offline/online status
+    function updateOnlineStatus() {
+        const indicator = document.getElementById('offlineIndicator');
+        if (!navigator.onLine) {
+            indicator.classList.add('show');
+        } else {
+            indicator.classList.remove('show');
+        }
+    }
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Check on page load
+    updateOnlineStatus();
+</script>
+
+<style>
+/* Three-Column Dashboard Layout */
+.three-column-dashboard {
+    display: grid;
+    grid-template-columns: 240px 1fr 320px;
+    gap: 1.5rem;
+    margin-top: -2rem;
+    min-height: calc(100vh - 200px);
+}
+
+/* LEFT SIDEBAR */
+.dashboard-sidebar {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 1.5rem;
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.sidebar-section {
+    margin-bottom: 2rem;
+}
+
+.sidebar-section:last-child {
+    margin-bottom: 0;
+}
+
+.sidebar-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #999;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
+}
+
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.75rem;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #666;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sidebar-menu-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    border-radius: 0 3px 3px 0;
+    transition: background 0.2s ease;
+}
+
+.sidebar-menu-item:hover {
+    background: #f8f9fa;
+    color: #333;
+}
+
+.sidebar-menu-item.active {
+    background: linear-gradient(90deg, rgba(0, 180, 160, 0.1) 0%, rgba(0, 180, 160, 0.05) 100%);
+    color: #00B4A0;
+    font-weight: 600;
+}
+
+.sidebar-menu-item.active::before {
+    background: #00B4A0;
+}
+
+.menu-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.menu-label {
+    font-size: 0.95rem;
+}
+
+.quick-action-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.quick-action-btn:last-child {
+    margin-bottom: 0;
+}
+
+.quick-action-secondary {
+    background: linear-gradient(135deg, #0066cc 0%, #004d99 100%);
+}
+
+.quick-action-secondary:hover {
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+/* Recent Activity Section */
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.activity-item:hover {
+    background: #e9ecef;
+    transform: translateX(3px);
+}
+
+.activity-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.activity-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+/* Account Info Section */
+.account-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.account-avatar {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #00B4A0 0%, #008c7a 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.account-details {
+    flex: 1;
+    overflow: hidden;
+}
+
+.account-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.account-role {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+/* CENTER PANEL */
+.dashboard-center {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* RIGHT AI PANEL */
+.dashboard-ai-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.ai-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 1.5rem;
+    border-left: 4px solid #8b5cf6;
+}
+
+.ai-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.ai-card-header h3 {
+    font-size: 1.1rem;
+    color: #333;
+    margin: 0;
+}
+
+.ai-badge {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* AI Risk Display */
+.ai-risk-display {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.risk-percentage {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.risk-value {
+    display: block;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #10b981;
+    line-height: 1;
+}
+
+.risk-label {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.confidence-indicator {
+    margin-top: 1rem;
+}
+
+.confidence-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.confidence-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.confidence-bar {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    transition: width 0.3s ease;
+}
+
+/* Collapsible Insights */
+.ai-insights-section {
+    margin-bottom: 1rem;
+}
+
+.collapsible-trigger {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    transition: background 0.2s ease;
+}
+
+.collapsible-trigger:hover {
+    background: #e9ecef;
+}
+
+.collapse-icon {
+    transition: transform 0.3s ease;
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.ai-factors-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+}
+
+.factor-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border-radius: 6px;
+    border-left: 3px solid #ddd;
+}
+
+.factor-item.factor-high {
+    border-left-color: #dc3545;
+}
+
+.factor-item.factor-medium {
+    border-left-color: #ffc107;
+}
+
+.factor-item.factor-low {
+    border-left-color: #28a745;
+}
+
+.factor-icon {
+    font-size: 1.2rem;
+}
+
+.factor-text {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.ai-action-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ai-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Recommendations */
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recommendation-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.recommendation-item:hover {
+    background: #e9ecef;
+}
+
+.rec-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.rec-content {
+    flex: 1;
+}
+
+.rec-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.rec-subtitle {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.rec-action {
+    padding: 0.4rem 1rem;
+    background: #00B4A0;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.rec-action:hover {
+    background: #008c7a;
+}
+
+/* AI Assistant Card */
+.ai-assistant-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-left-color: #667eea;
+}
+
+.assistant-icon {
+    font-size: 2.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.assistant-text h4 {
+    color: white;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.assistant-text p {
+    color: rgba(255,255,255,0.9);
+    font-size: 0.85rem;
+    margin: 0 0 1rem 0;
+}
+
+.assistant-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    background: white;
+    color: #667eea;
+    text-align: center;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.2s ease;
+}
+
+.assistant-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Compliance Snapshot with AI Layout */
+.compliance-snapshot-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.compliance-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+/* AI Prediction Summary (Compact) */
+.ai-prediction-summary {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 4px solid #8b5cf6;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.ai-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.ai-summary-header h3 {
+    font-size: 1.1rem;
+    color: #333;
+    margin: 0;
+}
+
+.ai-risk-display-compact {
+    background: white;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.risk-percentage-large {
+    text-align: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.risk-value-large {
+    display: block;
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: #10b981;
+    line-height: 1;
+}
+
+.risk-label-large {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.confidence-indicator-compact {
+    margin-top: 1rem;
+}
+
+.confidence-label-compact {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.confidence-value-compact {
+    font-weight: 600;
+    color: #333;
+}
+
+.confidence-bar-compact {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.confidence-fill-compact {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    transition: width 0.3s ease;
+}
+
+.key-factors-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.factor-item-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 6px;
+    border-left: 3px solid #ddd;
+}
+
+.factor-item-compact.factor-high {
+    border-left-color: #dc3545;
+}
+
+.factor-item-compact.factor-medium {
+    border-left-color: #ffc107;
+}
+
+.factor-item-compact.factor-low {
+    border-left-color: #28a745;
+}
+
+.factor-icon-compact {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.factor-text-compact {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.ai-view-details-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-top: auto;
+}
+
+.ai-view-details-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+    .three-column-dashboard {
+        grid-template-columns: 220px 1fr 300px;
+    }
+
+    .compliance-snapshot-layout {
+        grid-template-columns: 1fr 320px;
+        gap: 1rem;
+    }
+
+    .compliance-grid-compact {
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 1200px) {
+    .three-column-dashboard {
+        grid-template-columns: 200px 1fr 280px;
+        gap: 1rem;
+    }
+
+    .ai-card {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .three-column-dashboard {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .dashboard-sidebar,
+    .dashboard-ai-panel {
+        position: relative;
+        top: 0;
+    }
+
+    .dashboard-ai-panel {
+        order: -1;
+    }
+
+    .compliance-snapshot-layout {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .compliance-grid-compact {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar-menu-item {
+        padding: 0.6rem;
+    }
+
+    .menu-label {
+        font-size: 0.9rem;
+    }
+
+    .compliance-grid-compact {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .risk-value-large {
+        font-size: 2.5rem;
+    }
+}
+
+/* AI Quick Entry Card (Technician View) */
+.ai-quick-entry-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+}
+
+.quick-entry-header {
+    margin-bottom: 1.5rem;
+}
+
+.quick-entry-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.quick-entry-title h2 {
+    color: white;
+    margin: 0;
+}
+
+.quick-entry-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.quick-entry-input-wrapper {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.quick-entry-textarea {
+    flex: 1;
+    padding: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-entry-textarea:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+.quick-entry-textarea::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.quick-entry-submit-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 160px;
+}
+
+.quick-entry-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.quick-entry-submit-btn .btn-icon {
+    font-size: 1.5rem;
+}
+
+.quick-entry-submit-btn .btn-text {
+    font-size: 0.9rem;
+}
+
+.quick-entry-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.benefit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.benefit-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.benefit-text {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.4;
+}
+
+/* Responsive Quick Entry */
+@media (max-width: 1024px) {
+    .quick-entry-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .quick-entry-input-wrapper {
+        flex-direction: column;
+    }
+
+    .quick-entry-submit-btn {
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .quick-entry-submit-btn .btn-icon {
+        font-size: 1.2rem;
+    }
+}
+</style>
+
 {% endblock %}

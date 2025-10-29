@@ -5,8 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}EcoFreonTrack{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+    <!-- Top Bar (Compliance Manager/Auditor View) -->
+    {% if current_user and (current_user.role == 'compliance_manager' or current_user.role == 'auditor' or current_user.role == 'admin') %}
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <div class="company-name">
+                <span class="company-icon">🏢</span>
+                <span>{{ current_user.company_name if current_user.company_name else 'EcoFreonTrack' }}</span>
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <a href="{{ url_for('alert_list') }}" class="top-bar-item notifications">
+                <span class="icon">🔔</span>
+                <span class="label">Notifications</span>
+                {% if active_alerts and active_alerts > 0 %}
+                <span class="badge badge-danger">{{ active_alerts }}</span>
+                {% endif %}
+            </a>
+            <a href="{{ url_for('settings') }}" class="top-bar-item profile">
+                <span class="icon">👤</span>
+                <span class="label">{{ current_user.full_name }}</span>
+                <small style="color: #999;">{{ current_user.role|replace('_', ' ')|title }}</small>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <header>
         <div class="container">
             <h1>
@@ -18,18 +45,78 @@
 
     <nav>
         <ul>
-            <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Dashboard</a></li>
+            <li><a href="{{ url_for('homepage') }}" {% if request.endpoint == 'homepage' %}class="active"{% endif %}>🏠 Home</a></li>
+
+            <!-- Dashboard - Manager/Admin only -->
+            {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
+            <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
+            {% endif %}
+
+            <!-- Equipment - Manager, Technician, Admin -->
+            {% if current_user and current_user.role in ['compliance_manager', 'technician', 'admin'] %}
             <li><a href="{{ url_for('equipment_list') }}" {% if 'equipment' in request.endpoint %}class="active"{% endif %}>Equipment</a></li>
+            {% endif %}
+
+            <!-- Technicians List - Manager/Admin -->
+            {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
             <li><a href="{{ url_for('technician_list') }}" {% if 'technician' in request.endpoint %}class="active"{% endif %}>Technicians</a></li>
+            {% endif %}
+
+            <!-- Logs - Technician only -->
+            {% if current_user and current_user.role == 'technician' %}
             <li><a href="{{ url_for('service_log_list') }}" {% if 'service_log' in request.endpoint %}class="active"{% endif %}>Service Logs</a></li>
             <li><a href="{{ url_for('leak_inspection_list') }}" {% if 'leak_inspection' in request.endpoint %}class="active"{% endif %}>Inspections</a></li>
+            {% endif %}
+
+            <!-- Compliance - Auditor (Compliance Officer) and Manager -->
+            {% if current_user and current_user.role in ['auditor', 'compliance_manager', 'admin'] %}
+            <li><a href="{{ url_for('alert_list') }}" {% if 'alert' in request.endpoint %}class="active"{% endif %}>Compliance Alerts</a></li>
+            <li><a href="{{ url_for('leak_inspection_list') }}" {% if 'leak_inspection' in request.endpoint %}class="active"{% endif %}>Inspections</a></li>
+            {% endif %}
+
+            <!-- Inventory - Manager/Admin -->
+            {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
             <li><a href="{{ url_for('inventory_list') }}" {% if 'inventory' in request.endpoint %}class="active"{% endif %}>Inventory</a></li>
-            <li><a href="{{ url_for('alert_list') }}" {% if 'alert' in request.endpoint %}class="active"{% endif %}>Alerts</a></li>
-            <li><a href="{{ url_for('reports') }}" {% if 'reports' in request.endpoint %}class="active"{% endif %}>Reports</a></li>
-            <li class="nav-section">AI Features:</li>
-            <li><a href="{{ url_for('ai_leak_risks') }}" {% if 'ai_leak_risks' in request.endpoint %}class="active"{% endif %}>Leak Prediction</a></li>
-            <li><a href="{{ url_for('ai_natural_language_service') }}" {% if 'ai_natural_language' in request.endpoint %}class="active"{% endif %}>Quick Entry</a></li>
-            <li><a href="{{ url_for('ai_chatbot') }}" {% if 'ai_chatbot' in request.endpoint %}class="active"{% endif %}>EPA Assistant</a></li>
+            {% endif %}
+
+            <!-- Documents - All authenticated users -->
+            {% if current_user %}
+            <li><a href="{{ url_for('document_list') }}" {% if 'document' in request.endpoint %}class="active"{% endif %}>Documents</a></li>
+            {% endif %}
+
+            <!-- Analytics/Reports - Manager only -->
+            {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
+            <li><a href="{{ url_for('reports') }}" {% if 'reports' in request.endpoint %}class="active"{% endif %}>Analytics</a></li>
+            {% endif %}
+
+            <!-- Settings - Manager & Admin -->
+            {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
+            <li><a href="{{ url_for('settings') }}" {% if 'settings' in request.endpoint %}class="active"{% endif %}>⚙️ Settings</a></li>
+            {% endif %}
+
+            <!-- User Management - Admin only -->
+            {% if current_user and current_user.role == 'admin' %}
+            <li><a href="{{ url_for('user_list') }}" {% if 'user' in request.endpoint %}class="active"{% endif %}>User Management</a></li>
+            {% endif %}
+
+            <!-- AI Features - Manager only -->
+            {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
+            <li class="dropdown">
+                <a>🤖 AI Features</a>
+                <ul class="dropdown-menu">
+                    <li><a href="{{ url_for('ai_leak_risks') }}" {% if 'ai_leak_risks' in request.endpoint %}class="active"{% endif %}>🔮 Leak Prediction</a></li>
+                    <li><a href="{{ url_for('ai_natural_language_service') }}" {% if 'ai_natural_language' in request.endpoint %}class="active"{% endif %}>⚡ Quick Entry</a></li>
+                    <li><a href="{{ url_for('ai_chatbot') }}" {% if 'ai_chatbot' in request.endpoint %}class="active"{% endif %}>💬 EPA Assistant</a></li>
+                </ul>
+            </li>
+            {% endif %}
+
+            <li class="nav-section">Account:</li>
+            {% if is_authenticated %}
+            <li><a href="{{ url_for('logout') }}" class="nav-btn-logout">🚪 Logout</a></li>
+            {% else %}
+            <li><a href="{{ url_for('login') }}" class="nav-btn-login">🔐 Sign In</a></li>
+            {% endif %}
         </ul>
     </nav>
 
@@ -50,7 +137,7 @@
     <footer>
         <p><strong>EcoFreonTrack</strong> - EPA Section 608 Compliance System</p>
         <p>Managed under 40 CFR Part 82</p>
-        <p>Version 1.0.0 | &copy; 2025</p>
+        <p>Version 2.0.0 | &copy; 2025</p>
     </footer>
 </body>
 </html>

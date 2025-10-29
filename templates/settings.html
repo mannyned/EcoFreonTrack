@@ -1,0 +1,989 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - EPA 608 Tracker{% endblock %}
+
+{% block content %}
+<!-- Indicator: Settings -->
+<div class="layer-indicator" style="--layer-color: #607d8b; --layer-color-dark: #455a64; background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);">
+    <div class="layer-indicator-content">
+        <span class="layer-icon">⚙️</span>
+        <div class="layer-info">
+            <h1 class="layer-name">Settings</h1>
+            <p class="layer-description">System Preferences & Configuration</p>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Layout Container -->
+<div class="settings-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="settings-sidebar">
+        <div class="sidebar-header">
+            <h2>⚙️ Settings</h2>
+            <p>Configure your preferences</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Personal</div>
+                <button class="sidebar-item active" data-section="profile">
+                    <span class="sidebar-icon">👤</span>
+                    <span class="sidebar-label">Profile</span>
+                </button>
+                <button class="sidebar-item" data-section="notifications">
+                    <span class="sidebar-icon">🔔</span>
+                    <span class="sidebar-label">Notifications</span>
+                </button>
+                <button class="sidebar-item" data-section="display">
+                    <span class="sidebar-icon">🎨</span>
+                    <span class="sidebar-label">Display</span>
+                </button>
+            </div>
+
+            {% if current_user and current_user.role in ['admin', 'compliance_manager'] %}
+            <div class="nav-section">
+                <div class="nav-section-title">Organization</div>
+                <button class="sidebar-item" data-section="company">
+                    <span class="sidebar-icon">🏢</span>
+                    <span class="sidebar-label">Company Info</span>
+                </button>
+                <button class="sidebar-item" data-section="technicians">
+                    <span class="sidebar-icon">👷</span>
+                    <span class="sidebar-label">Tech Users</span>
+                </button>
+                <button class="sidebar-item" data-section="billing">
+                    <span class="sidebar-icon">💳</span>
+                    <span class="sidebar-label">Billing</span>
+                </button>
+                <button class="sidebar-item" data-section="compliance">
+                    <span class="sidebar-icon">📋</span>
+                    <span class="sidebar-label">Compliance</span>
+                </button>
+            </div>
+            {% endif %}
+
+            <div class="nav-section">
+                <div class="nav-section-title">Advanced</div>
+                <button class="sidebar-item" data-section="quick-links">
+                    <span class="sidebar-icon">🔗</span>
+                    <span class="sidebar-label">Quick Links</span>
+                </button>
+                {% if current_user and current_user.role == 'admin' %}
+                <button class="sidebar-item" data-section="system">
+                    <span class="sidebar-icon">ℹ️</span>
+                    <span class="sidebar-label">System Info</span>
+                </button>
+                {% endif %}
+                <button class="sidebar-item" data-section="export">
+                    <span class="sidebar-icon">💾</span>
+                    <span class="sidebar-label">Data Export</span>
+                </button>
+                <button class="sidebar-item" data-section="help">
+                    <span class="sidebar-icon">❓</span>
+                    <span class="sidebar-label">Help</span>
+                </button>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Settings Content Container -->
+    <div class="settings-content" id="settings-content">
+
+<!-- User Profile Section -->
+<div class="settings-section" data-section="profile">
+{% if current_user %}
+<div class="card">
+    <h2>👤 User Profile</h2>
+    <div class="settings-grid">
+        <div class="settings-item">
+            <div class="settings-label">Full Name</div>
+            <div class="settings-value">{{ current_user.full_name }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Email</div>
+            <div class="settings-value">{{ current_user.email }}</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Role</div>
+            <div class="settings-value">
+                <span class="badge badge-info">{{ current_user.role|replace('_', ' ')|title }}</span>
+            </div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Account Created</div>
+            <div class="settings-value">{{ current_user.created_at.strftime('%Y-%m-%d') if current_user.created_at else 'N/A' }}</div>
+        </div>
+    </div>
+    <div class="mt-2">
+        <a href="#" class="btn btn-primary">Edit Profile</a>
+        <a href="#" class="btn btn-secondary">Change Password</a>
+    </div>
+</div>
+{% endif %}
+</div>
+<!-- End Profile Section -->
+
+<!-- Notification Preferences -->
+<div class="settings-section" data-section="notifications">
+<div class="card">
+    <h2>🔔 Notification Preferences</h2>
+    <form method="post" action="{{ url_for('settings_update') if url_for('settings_update') else '#' }}">
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="notify_leak_alerts" checked>
+                <span>Leak Rate Alerts (> 30% critical threshold)</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="notify_inspection_due" checked>
+                <span>Upcoming Inspections (7 days before due date)</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="notify_low_inventory" checked>
+                <span>Low Refrigerant Inventory Warnings</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="notify_cert_expiry" checked>
+                <span>Technician Certification Expiration (30 days notice)</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="notify_email_digest">
+                <span>Daily Email Digest Summary</span>
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Notification Preferences</button>
+    </form>
+</div>
+</div>
+<!-- End Notifications Section -->
+
+<!-- System Preferences -->
+<div class="settings-section" data-section="display">
+<div class="card">
+    <h2>🎨 Display Preferences</h2>
+    <form method="post" action="{{ url_for('settings_update') if url_for('settings_update') else '#' }}">
+        <div class="form-group">
+            <label for="date_format">Date Format</label>
+            <select id="date_format" name="date_format" class="form-control">
+                <option value="YYYY-MM-DD" selected>2025-10-28 (ISO 8601)</option>
+                <option value="MM/DD/YYYY">10/28/2025 (US)</option>
+                <option value="DD/MM/YYYY">28/10/2025 (International)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="refrigerant_unit">Refrigerant Unit</label>
+            <select id="refrigerant_unit" name="refrigerant_unit" class="form-control">
+                <option value="lbs" selected>Pounds (lbs)</option>
+                <option value="kg">Kilograms (kg)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="items_per_page">Items Per Page</label>
+            <select id="items_per_page" name="items_per_page" class="form-control">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="show_layer_indicators" checked>
+                <span>Show Section Indicators (5-Section Architecture)</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" name="compact_mode">
+                <span>Compact Mode (Reduce spacing for smaller screens)</span>
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Display Preferences</button>
+    </form>
+</div>
+</div>
+<!-- End Display Section -->
+
+<!-- Company Information (Admin/Manager Only) -->
+<div class="settings-section" data-section="company">
+{% if current_user and current_user.role in ['admin', 'compliance_manager'] %}
+<div class="card">
+    <h2>🏢 Company Information</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Manage your company profile and contact details</p>
+    <form method="post" action="{{ url_for('settings_update') if url_for('settings_update') else '#' }}">
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label for="company_name">Company Name *</label>
+                <input type="text" id="company_name" name="company_name"
+                       class="form-control" value="{{ current_user.company_name if current_user.company_name else '' }}" required>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="company_phone">Phone Number *</label>
+                <input type="tel" id="company_phone" name="company_phone"
+                       class="form-control" value="{{ current_user.phone if current_user.phone else '' }}" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="company_address">Street Address *</label>
+            <input type="text" id="company_address" name="company_address"
+                   class="form-control" value="{{ current_user.street_address if current_user.street_address else '' }}" required>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label for="company_city">City *</label>
+                <input type="text" id="company_city" name="company_city"
+                       class="form-control" value="{{ current_user.city if current_user.city else '' }}" required>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="company_state">State *</label>
+                <input type="text" id="company_state" name="company_state"
+                       class="form-control" value="{{ current_user.state if current_user.state else '' }}" maxlength="2" required>
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label for="company_zip">Zip Code *</label>
+                <input type="text" id="company_zip" name="company_zip"
+                       class="form-control" value="{{ current_user.zip_code if current_user.zip_code else '' }}" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="company_email">Company Email</label>
+            <input type="email" id="company_email" name="company_email"
+                   class="form-control" value="{{ current_user.email if current_user.email else '' }}">
+        </div>
+        <div class="form-group">
+            <label for="company_website">Website</label>
+            <input type="url" id="company_website" name="company_website"
+                   class="form-control" placeholder="https://www.example.com">
+        </div>
+        <button type="submit" class="btn btn-primary">Update Company Info</button>
+    </form>
+</div>
+{% endif %}
+</div>
+<!-- End Company Section -->
+
+<!-- Technician Users (Manager Only) -->
+<div class="settings-section" data-section="technicians">
+{% if current_user and current_user.role in ['admin', 'compliance_manager'] %}
+<div class="card">
+    <h2>👷 Technician Users</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Manage technician accounts and certifications</p>
+
+    <div class="settings-grid">
+        <div class="stat-card">
+            <h3>Total Technicians</h3>
+            <div class="stat-value">{{ total_technicians if total_technicians else 0 }}</div>
+        </div>
+        <div class="stat-card success">
+            <h3>Active Technicians</h3>
+            <div class="stat-value">{{ active_technicians if active_technicians else 0 }}</div>
+        </div>
+        <div class="stat-card danger">
+            <h3>Certifications Expiring</h3>
+            <div class="stat-value">{{ expiring_certs if expiring_certs else 0 }}</div>
+            <small style="color: #666;">Within 30 days</small>
+        </div>
+    </div>
+
+    <table class="table" style="margin-top: 1.5rem;">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Certification</th>
+                <th>Expiration Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Sample data - will be populated from backend -->
+            <tr>
+                <td colspan="5" style="text-align: center; color: #999; padding: 2rem;">
+                    No technician data available
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="mt-2">
+        <a href="{{ url_for('technician_list') }}" class="btn btn-primary">View All Technicians</a>
+        <a href="{{ url_for('technician_add') }}" class="btn btn-secondary">➕ Add New Technician</a>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('user_list') }}" class="btn btn-secondary">Manage User Accounts</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+</div>
+<!-- End Technicians Section -->
+
+<!-- Billing & Subscription (Manager Only) -->
+<div class="settings-section" data-section="billing">
+{% if current_user and current_user.role in ['admin', 'compliance_manager'] %}
+<div class="card">
+    <h2>💳 Billing & Subscription</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Manage your subscription plan and billing information</p>
+
+    <div class="billing-plan-card">
+        <div class="billing-plan-header">
+            <div>
+                <h3>Current Plan: <span class="badge badge-success">Professional</span></h3>
+                <p style="color: #666; margin: 0.5rem 0 0 0;">Full EPA 608 compliance features with AI capabilities</p>
+            </div>
+            <div class="billing-price">
+                <span class="price-amount">$99</span>
+                <span class="price-period">/month</span>
+            </div>
+        </div>
+
+        <div class="billing-details">
+            <div class="billing-item">
+                <span class="billing-label">Next Billing Date</span>
+                <span class="billing-value">November 28, 2025</span>
+            </div>
+            <div class="billing-item">
+                <span class="billing-label">Payment Method</span>
+                <span class="billing-value">•••• •••• •••• 4242 (Visa)</span>
+            </div>
+            <div class="billing-item">
+                <span class="billing-label">Billing Email</span>
+                <span class="billing-value">{{ current_user.email if current_user.email else 'Not set' }}</span>
+            </div>
+        </div>
+
+        <div class="billing-features">
+            <h4 style="margin-bottom: 1rem;">Plan Features:</h4>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 0.5rem 0; color: #28a745;">✓ Unlimited Equipment Tracking</li>
+                <li style="padding: 0.5rem 0; color: #28a745;">✓ Up to 25 Technician Users</li>
+                <li style="padding: 0.5rem 0; color: #28a745;">✓ AI Leak Prediction & Analysis</li>
+                <li style="padding: 0.5rem 0; color: #28a745;">✓ EPA Compliance Reporting</li>
+                <li style="padding: 0.5rem 0; color: #28a745;">✓ Document Management (50GB Storage)</li>
+                <li style="padding: 0.5rem 0; color: #28a745;">✓ Priority Support</li>
+            </ul>
+        </div>
+
+        <div class="mt-2">
+            <a href="#" class="btn btn-primary">Update Payment Method</a>
+            <a href="#" class="btn btn-secondary">View Billing History</a>
+            <a href="#" class="btn btn-secondary">Download Invoices</a>
+        </div>
+    </div>
+
+    <div style="margin-top: 2rem; padding: 1.5rem; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
+        <strong style="color: #856404;">💡 Need to upgrade or downgrade?</strong>
+        <p style="color: #856404; margin: 0.5rem 0 0 0;">Contact our sales team at <a href="mailto:sales@ecofreontrack.com" style="color: #00B4A0;">sales@ecofreontrack.com</a> or call 1-800-ECO-TRACK</p>
+    </div>
+</div>
+{% endif %}
+</div>
+<!-- End Billing Section -->
+
+<!-- EPA Compliance Settings (Admin/Manager Only) -->
+<div class="settings-section" data-section="compliance">
+{% if current_user and current_user.role in ['admin', 'compliance_manager'] %}
+<div class="card">
+    <h2>📋 EPA Compliance Configuration</h2>
+    <form method="post" action="{{ url_for('settings_update') if url_for('settings_update') else '#' }}">
+        <div class="form-group">
+            <label for="leak_threshold_minor">Minor Leak Threshold (%)</label>
+            <input type="number" id="leak_threshold_minor" name="leak_threshold_minor"
+                   class="form-control" value="10" min="5" max="20" step="1">
+            <small style="color: #666;">Yellow warning alerts above this percentage</small>
+        </div>
+        <div class="form-group">
+            <label for="leak_threshold_critical">Critical Leak Threshold (%)</label>
+            <input type="number" id="leak_threshold_critical" name="leak_threshold_critical"
+                   class="form-control" value="30" min="20" max="50" step="1">
+            <small style="color: #666;">Red critical alerts above this percentage (EPA 608 default: 30%)</small>
+        </div>
+        <div class="form-group">
+            <label for="inspection_reminder_days">Inspection Reminder (days before due)</label>
+            <input type="number" id="inspection_reminder_days" name="inspection_reminder_days"
+                   class="form-control" value="7" min="1" max="30" step="1">
+        </div>
+        <div class="form-group">
+            <label for="facility_name">Facility Name (for reports)</label>
+            <input type="text" id="facility_name" name="facility_name"
+                   class="form-control" placeholder="Enter facility name">
+        </div>
+        <div class="form-group">
+            <label for="epa_id">EPA ID Number</label>
+            <input type="text" id="epa_id" name="epa_id"
+                   class="form-control" placeholder="EPA-########">
+        </div>
+        <button type="submit" class="btn btn-primary">Save Compliance Settings</button>
+    </form>
+</div>
+{% endif %}
+</div>
+<!-- End Compliance Section -->
+
+<!-- Quick Links to Other Settings -->
+<div class="settings-section" data-section="quick-links">
+<div class="card">
+    <h2>🔗 Quick Links</h2>
+    <div class="action-grid">
+        {% if current_user and current_user.role == 'admin' %}
+        <a href="{{ url_for('user_list') }}" class="action-button" style="border-top-color: #dc3545;">
+            <div class="icon">👥</div>
+            <div class="label">Manage Users</div>
+            <div class="description">User → Roles & Permissions</div>
+        </a>
+        {% endif %}
+
+        {% if current_user and current_user.role in ['admin', 'compliance_manager'] %}
+        <a href="{{ url_for('technician_list') }}" class="action-button" style="border-top-color: #dc3545;">
+            <div class="icon">🔧</div>
+            <div class="label">Manage Technicians</div>
+            <div class="description">User → Certifications</div>
+        </a>
+        <a href="{{ url_for('inventory_list') }}" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">📦</div>
+            <div class="label">Refrigerant Inventory</div>
+            <div class="description">Equipment → Stock Levels</div>
+        </a>
+        {% endif %}
+
+        <a href="{{ url_for('alert_list') }}" class="action-button" style="border-top-color: #00B4A0;">
+            <div class="icon">🚨</div>
+            <div class="label">Alert Settings</div>
+            <div class="description">Dashboard → Manage Alerts</div>
+        </a>
+
+        <a href="{{ url_for('document_list') }}" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📄</div>
+            <div class="label">Documents</div>
+            <div class="description">Logs → Certificates & Reports</div>
+        </a>
+    </div>
+</div>
+</div>
+<!-- End Quick Links Section -->
+
+<!-- System Information (Admin Only) -->
+<div class="settings-section" data-section="system">
+{% if current_user and current_user.role == 'admin' %}
+<div class="card">
+    <h2>ℹ️ System Information</h2>
+    <div class="settings-grid">
+        <div class="settings-item">
+            <div class="settings-label">Application Version</div>
+            <div class="settings-value">2.0.0</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Architecture</div>
+            <div class="settings-value">5-Section UX System</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Database</div>
+            <div class="settings-value">SQLite (Development)</div>
+        </div>
+        <div class="settings-item">
+            <div class="settings-label">Last Backup</div>
+            <div class="settings-value">2025-10-28 17:36:28</div>
+        </div>
+    </div>
+    <div class="mt-2">
+        <a href="#" class="btn btn-secondary">Backup Database</a>
+        <a href="#" class="btn btn-secondary">View System Logs</a>
+        <a href="#" class="btn btn-danger">Clear Cache</a>
+    </div>
+</div>
+{% endif %}
+</div>
+<!-- End System Section -->
+
+<!-- Data Export -->
+<div class="settings-section" data-section="export">
+<div class="card">
+    <h2>💾 Data Export</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Export your data for backup or compliance audits</p>
+    <div class="action-grid">
+        <a href="#" class="action-button" style="border-top-color: #673ab7;">
+            <div class="icon">📊</div>
+            <div class="label">Export All Reports</div>
+            <div class="description">PDF format, EPA 608/609 compliant</div>
+        </a>
+        <a href="#" class="action-button" style="border-top-color: #28a745;">
+            <div class="icon">📋</div>
+            <div class="label">Export Service Logs</div>
+            <div class="description">CSV format for spreadsheet analysis</div>
+        </a>
+        <a href="#" class="action-button" style="border-top-color: #ff9800;">
+            <div class="icon">📦</div>
+            <div class="label">Export Equipment Data</div>
+            <div class="description">JSON format with full history</div>
+        </a>
+    </div>
+</div>
+</div>
+<!-- End Export Section -->
+
+<!-- Help & Support -->
+<div class="settings-section" data-section="help">
+<div class="card">
+    <h2>❓ Help & Support</h2>
+    <div class="leak-rate-safe">
+        <div class="leak-rate-indicator">
+            <span class="icon">📖</span>
+            <div style="flex: 1;">
+                <strong>Documentation</strong><br>
+                <span style="font-size: 0.95rem; color: #666;">
+                    View the comprehensive architecture guide and UX documentation
+                </span>
+            </div>
+            <a href="#" class="btn btn-primary">View Docs</a>
+        </div>
+    </div>
+    <div class="leak-rate-safe" style="margin-top: 1rem;">
+        <div class="leak-rate-indicator">
+            <span class="icon">🆘</span>
+            <div style="flex: 1;">
+                <strong>EPA 608 Compliance Guide</strong><br>
+                <span style="font-size: 0.95rem; color: #666;">
+                    Reference for leak rate thresholds, reporting requirements, and regulations
+                </span>
+            </div>
+            <a href="https://www.epa.gov/section608" target="_blank" class="btn btn-primary">EPA Website</a>
+        </div>
+    </div>
+</div>
+</div>
+<!-- End Help Section -->
+
+</div>
+<!-- End Settings Content Container -->
+
+    </div>
+    <!-- End Settings Content -->
+</div>
+<!-- End Settings Layout -->
+
+<!-- Settings Sidebar JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarItems = document.querySelectorAll('.sidebar-item');
+    const sections = document.querySelectorAll('.settings-section');
+    let saveTimeout;
+
+    function showSection(sectionName) {
+        // Hide all sections
+        sections.forEach(section => {
+            section.classList.remove('active');
+        });
+
+        // Remove active class from all sidebar items
+        sidebarItems.forEach(item => {
+            item.classList.remove('active');
+        });
+
+        // Show selected section
+        const targetSection = document.querySelector(`.settings-section[data-section="${sectionName}"]`);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+
+        // Add active class to clicked sidebar item
+        const activeItem = document.querySelector(`.sidebar-item[data-section="${sectionName}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+        }
+    }
+
+    // Add click event to all sidebar items
+    sidebarItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const sectionName = this.getAttribute('data-section');
+            showSection(sectionName);
+        });
+    });
+
+    // Autosave functionality for toggles
+    function showSaveIndicator(checkbox) {
+        const indicator = document.createElement('span');
+        indicator.className = 'save-indicator';
+        indicator.textContent = '✓ Saved';
+
+        const label = checkbox.closest('.checkbox-label');
+        if (label) {
+            // Remove any existing indicators
+            const existing = label.querySelector('.save-indicator');
+            if (existing) {
+                existing.remove();
+            }
+
+            label.appendChild(indicator);
+
+            // Fade out after 2 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 300);
+            }, 2000);
+        }
+    }
+
+    // Add autosave to all checkboxes
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Clear previous timeout
+            clearTimeout(saveTimeout);
+
+            // Show saving state
+            this.disabled = true;
+
+            // Simulate autosave after 500ms
+            saveTimeout = setTimeout(() => {
+                // Here you would make an AJAX call to save the setting
+                // For now, we'll just simulate it
+                console.log('Autosaving:', this.name, '=', this.checked);
+
+                this.disabled = false;
+                showSaveIndicator(this);
+            }, 500);
+        });
+    });
+
+    // Show first section by default
+    showSection('profile');
+});
+</script>
+
+<style>
+/* Settings Layout */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    min-height: 600px;
+    margin-top: -2rem;
+}
+
+/* Sidebar Styles */
+.settings-sidebar {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.sidebar-header {
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-header h2 {
+    font-size: 1.5rem;
+    color: #333;
+    margin: 0 0 0.5rem 0;
+}
+
+.sidebar-header p {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0;
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.nav-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.nav-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #999;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    padding: 0 0.75rem;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+    position: relative;
+}
+
+.sidebar-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    border-radius: 0 3px 3px 0;
+    transition: background 0.2s ease;
+}
+
+.sidebar-item:hover {
+    background: #f8f9fa;
+}
+
+.sidebar-item.active {
+    background: linear-gradient(90deg, rgba(0, 180, 160, 0.1) 0%, rgba(0, 180, 160, 0.05) 100%);
+    color: #00B4A0;
+}
+
+.sidebar-item.active::before {
+    background: #00B4A0;
+}
+
+.sidebar-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.sidebar-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.sidebar-item.active .sidebar-label {
+    color: #00B4A0;
+    font-weight: 600;
+}
+
+/* Settings Content Container */
+.settings-content {
+    position: relative;
+    min-height: 600px;
+}
+
+.settings-section {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s, transform 0.3s ease;
+    transform: translateX(20px);
+    z-index: 1;
+}
+
+.settings-section.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    z-index: 2;
+}
+
+/* Save Indicator */
+.save-indicator {
+    display: inline-block;
+    margin-left: 1rem;
+    padding: 0.25rem 0.75rem;
+    background: #28a745;
+    color: white;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* Enhanced Checkbox Labels with Autosave */
+.checkbox-label {
+    position: relative;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .settings-layout {
+        grid-template-columns: 240px 1fr;
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .settings-sidebar {
+        position: relative;
+        top: 0;
+    }
+
+    .sidebar-header h2 {
+        font-size: 1.3rem;
+    }
+}
+
+/* Settings-specific styles */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.settings-item {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #607d8b;
+}
+
+.settings-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.settings-value {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.5rem 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.checkbox-label span {
+    font-size: 1rem;
+    color: #333;
+}
+
+@media (max-width: 768px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Billing Styles */
+.billing-plan-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1.5rem 0;
+    border: 2px solid #dee2e6;
+}
+
+.billing-plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.billing-plan-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.billing-price {
+    text-align: right;
+}
+
+.price-amount {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #28a745;
+}
+
+.price-period {
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.billing-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.billing-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.billing-label {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.billing-value {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.billing-features {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.billing-features h4 {
+    color: #333;
+    font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+    .billing-plan-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .billing-price {
+        text-align: left;
+    }
+}
+</style>
+{% endblock %}
