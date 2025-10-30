@@ -14,6 +14,7 @@ class Equipment(db.Model):
     __tablename__ = 'equipment'
 
     id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     equipment_id = db.Column(db.String(100), unique=True, nullable=False)
     name = db.Column(db.String(200), nullable=False)
     equipment_type = db.Column(db.String(100), nullable=False)  # Chiller, AC, Freezer, etc.
@@ -65,6 +66,9 @@ class Technician(db.Model):
     email = db.Column(db.String(200))
     phone = db.Column(db.String(50))
     company = db.Column(db.String(200))
+
+    # Certificate file
+    certificate_filename = db.Column(db.String(500))  # Stores the uploaded certificate filename
 
     # Status
     status = db.Column(db.String(50), default='Active')  # Active, Inactive, Expired
@@ -443,3 +447,41 @@ class User(db.Model):
 
     def __repr__(self):
         return f'<User {self.username}: {self.role}>'
+
+
+class Customer(db.Model):
+    """Customer/Company information with contact details and equipment tracking"""
+    __tablename__ = 'customer'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Company information
+    company_name = db.Column(db.String(200), nullable=False)
+    contact_person = db.Column(db.String(200))
+
+    # Contact details
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(200))
+
+    # Location
+    location = db.Column(db.String(300))
+    street_address = db.Column(db.String(300))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    zip_code = db.Column(db.String(20))
+
+    # Additional information
+    notes = db.Column(db.Text)
+
+    # Status
+    status = db.Column(db.String(50), default='Active')  # Active, Inactive
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships - Link equipment to customers
+    equipment = db.relationship('Equipment', backref='customer', lazy=True, foreign_keys='Equipment.customer_id')
+
+    def __repr__(self):
+        return f'<Customer {self.company_name}>'

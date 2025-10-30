@@ -4,7 +4,7 @@ Managed under 40 CFR Part 82
 Flask web application for tracking refrigerant usage, leakage, recovery, and compliance
 """
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, session
-from models import db, Equipment, Technician, ServiceLog, LeakInspection, RefrigerantTransaction, ComplianceAlert, RefrigerantInventory, Document, TechnicianCertification, User
+from models import db, Equipment, Technician, ServiceLog, LeakInspection, RefrigerantTransaction, ComplianceAlert, RefrigerantInventory, Document, TechnicianCertification, User, Customer
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
 from config import get_config
@@ -17,7 +17,10 @@ from file_utils import (
     get_documents_by_entity,
     format_file_size,
     get_document_icon,
-    ALLOWED_EXTENSIONS
+    ALLOWED_EXTENSIONS,
+    allowed_file,
+    generate_unique_filename,
+    get_upload_folder
 )
 from auth import (
     login_required,
@@ -635,7 +638,15 @@ def equipment_add():
     """Add new equipment"""
     if request.method == 'POST':
         try:
+            # Handle customer_id - convert empty string to None
+            customer_id = request.form.get('customer_id')
+            if customer_id == '':
+                customer_id = None
+            elif customer_id:
+                customer_id = int(customer_id)
+
             equip = Equipment(
+                customer_id=customer_id,
                 equipment_id=request.form['equipment_id'],
                 name=request.form['name'],
                 equipment_type=request.form['equipment_type'],
@@ -660,7 +671,8 @@ def equipment_add():
             db.session.rollback()
             flash(f'Error adding equipment: {str(e)}', 'error')
 
-    return render_template('equipment_form.html', equipment=None)
+    customers = Customer.query.order_by(Customer.company_name).all()
+    return render_template('equipment_form.html', equipment=None, customers=customers)
 
 
 @app.route('/equipment/<int:id>/edit', methods=['GET', 'POST'])
@@ -670,6 +682,14 @@ def equipment_edit(id):
 
     if request.method == 'POST':
         try:
+            # Handle customer_id - convert empty string to None
+            customer_id = request.form.get('customer_id')
+            if customer_id == '':
+                customer_id = None
+            elif customer_id:
+                customer_id = int(customer_id)
+
+            equip.customer_id = customer_id
             equip.equipment_id = request.form['equipment_id']
             equip.name = request.form['name']
             equip.equipment_type = request.form['equipment_type']
@@ -694,7 +714,8 @@ def equipment_edit(id):
             db.session.rollback()
             flash(f'Error updating equipment: {str(e)}', 'error')
 
-    return render_template('equipment_form.html', equipment=equip)
+    customers = Customer.query.order_by(Customer.company_name).all()
+    return render_template('equipment_form.html', equipment=equip, customers=customers)
 
 
 # ============================================================================
@@ -713,6 +734,23 @@ def technician_add():
     """Add new technician"""
     if request.method == 'POST':
         try:
+            # Handle certificate file upload
+            certificate_filename = None
+            if 'certificate_file' in request.files:
+                file = request.files['certificate_file']
+                if file and file.filename and allowed_file(file.filename, 'Certification'):
+                    from werkzeug.utils import secure_filename
+                    # Generate unique filename
+                    original_filename = secure_filename(file.filename)
+                    unique_filename = generate_unique_filename(original_filename)
+
+                    # Save file to uploads folder
+                    upload_folder = get_upload_folder('uploads/certificates')
+                    file_path = os.path.join(upload_folder, unique_filename)
+                    file.save(file_path)
+
+                    certificate_filename = unique_filename
+
             tech = Technician(
                 name=request.form['name'],
                 certification_number=request.form['certification_number'],
@@ -721,7 +759,8 @@ def technician_add():
                 expiration_date=datetime.strptime(request.form['expiration_date'], '%Y-%m-%d').date() if request.form.get('expiration_date') else None,
                 email=request.form.get('email', ''),
                 phone=request.form.get('phone', ''),
-                company=request.form.get('company', '')
+                company=request.form.get('company', ''),
+                certificate_filename=certificate_filename
             )
 
             db.session.add(tech)
@@ -743,6 +782,28 @@ def technician_edit(id):
 
     if request.method == 'POST':
         try:
+            # Handle certificate file upload
+            if 'certificate_file' in request.files:
+                file = request.files['certificate_file']
+                if file and file.filename and allowed_file(file.filename, 'Certification'):
+                    from werkzeug.utils import secure_filename
+                    # Generate unique filename
+                    original_filename = secure_filename(file.filename)
+                    unique_filename = generate_unique_filename(original_filename)
+
+                    # Save file to uploads folder
+                    upload_folder = get_upload_folder('uploads/certificates')
+                    file_path = os.path.join(upload_folder, unique_filename)
+                    file.save(file_path)
+
+                    # Delete old certificate if exists
+                    if tech.certificate_filename:
+                        old_file_path = os.path.join(upload_folder, tech.certificate_filename)
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+
+                    tech.certificate_filename = unique_filename
+
             tech.name = request.form['name']
             tech.certification_number = request.form['certification_number']
             tech.certification_type = request.form['certification_type']
@@ -763,6 +824,120 @@ def technician_edit(id):
             flash(f'Error updating technician: {str(e)}', 'error')
 
     return render_template('technician_form.html', technician=tech)
+
+
+@app.route('/technicians/<int:id>/certificate/download')
+@login_required
+def download_technician_certificate(id):
+    """Download technician certificate"""
+    tech = Technician.query.get_or_404(id)
+
+    if not tech.certificate_filename:
+        flash('No certificate file found for this technician', 'error')
+        return redirect(url_for('technician_list'))
+
+    try:
+        upload_folder = get_upload_folder('uploads/certificates')
+        file_path = os.path.join(upload_folder, tech.certificate_filename)
+
+        if not os.path.exists(file_path):
+            flash('Certificate file not found on server', 'error')
+            return redirect(url_for('technician_list'))
+
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=f"{tech.name}_EPA608_Certificate{os.path.splitext(tech.certificate_filename)[1]}"
+        )
+    except Exception as e:
+        flash(f'Error downloading certificate: {str(e)}', 'error')
+        return redirect(url_for('technician_list'))
+
+
+# ============================================================================
+# CUSTOMERS
+# ============================================================================
+
+@app.route('/customers')
+def customer_list():
+    """List all customers"""
+    customers = Customer.query.order_by(Customer.company_name).all()
+    return render_template('customer_list.html', customers=customers)
+
+
+@app.route('/customers/add', methods=['GET', 'POST'])
+def customer_add():
+    """Add new customer"""
+    if request.method == 'POST':
+        try:
+            customer = Customer(
+                company_name=request.form['company_name'],
+                contact_person=request.form.get('contact_person', ''),
+                phone=request.form.get('phone', ''),
+                email=request.form.get('email', ''),
+                location=request.form.get('location', ''),
+                street_address=request.form.get('street_address', ''),
+                city=request.form.get('city', ''),
+                state=request.form.get('state', ''),
+                zip_code=request.form.get('zip_code', ''),
+                notes=request.form.get('notes', '')
+            )
+
+            db.session.add(customer)
+            db.session.commit()
+
+            flash(f'Customer {customer.company_name} added successfully!', 'success')
+            return redirect(url_for('customer_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding customer: {str(e)}', 'error')
+
+    return render_template('customer_form.html', customer=None)
+
+
+@app.route('/customers/<int:id>/edit', methods=['GET', 'POST'])
+def customer_edit(id):
+    """Edit customer"""
+    customer = Customer.query.get_or_404(id)
+
+    if request.method == 'POST':
+        try:
+            customer.company_name = request.form['company_name']
+            customer.contact_person = request.form.get('contact_person', '')
+            customer.phone = request.form.get('phone', '')
+            customer.email = request.form.get('email', '')
+            customer.location = request.form.get('location', '')
+            customer.street_address = request.form.get('street_address', '')
+            customer.city = request.form.get('city', '')
+            customer.state = request.form.get('state', '')
+            customer.zip_code = request.form.get('zip_code', '')
+            customer.notes = request.form.get('notes', '')
+            customer.status = request.form['status']
+
+            db.session.commit()
+            flash(f'Customer {customer.company_name} updated successfully!', 'success')
+            return redirect(url_for('customer_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating customer: {str(e)}', 'error')
+
+    return render_template('customer_form.html', customer=customer)
+
+
+@app.route('/customers/<int:id>/delete', methods=['POST'])
+def customer_delete(id):
+    """Delete customer"""
+    customer = Customer.query.get_or_404(id)
+
+    try:
+        db.session.delete(customer)
+        db.session.commit()
+        flash(f'Customer {customer.company_name} deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting customer: {str(e)}', 'error')
+
+    return redirect(url_for('customer_list'))
 
 
 # ============================================================================

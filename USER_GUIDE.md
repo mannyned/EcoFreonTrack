@@ -14,15 +14,16 @@
 6. [User Management (Admin Only)](#user-management-admin-only)
 7. [Equipment Management](#equipment-management)
 8. [Technician Management](#technician-management)
-9. [Service Logging](#service-logging)
-10. [Leak Inspections](#leak-inspections)
-11. [Refrigerant Inventory](#refrigerant-inventory)
-12. [Document Management](#document-management)
-13. [Compliance Alerts](#compliance-alerts)
-14. [Reports and Analytics](#reports-and-analytics)
-15. [EPA Compliance Guidelines](#epa-compliance-guidelines)
-16. [Troubleshooting](#troubleshooting)
-17. [Best Practices](#best-practices)
+9. [Customer Management](#customer-management)
+10. [Service Logging](#service-logging)
+11. [Leak Inspections](#leak-inspections)
+12. [Refrigerant Inventory](#refrigerant-inventory)
+13. [Document Management](#document-management)
+14. [Compliance Alerts](#compliance-alerts)
+15. [Reports and Analytics](#reports-and-analytics)
+16. [EPA Compliance Guidelines](#epa-compliance-guidelines)
+17. [Troubleshooting](#troubleshooting)
+18. [Best Practices](#best-practices)
 
 ---
 
@@ -515,6 +516,208 @@ To link them:
 - Service logs automatically link to technician
 - Certification tracking for logged-in users
 - Better audit trail
+
+---
+
+## Customer Management
+
+Track customer/company information and associate equipment with specific customers.
+
+### Overview
+
+The Customer Management system allows you to:
+- Store customer/company information and contact details
+- Track multiple locations for each customer
+- Associate equipment with customers
+- View all equipment for a specific customer
+- Maintain organized customer records for billing and reporting
+
+**Who Can Access:**
+- **Managers**: Full access (view, add, edit, delete)
+- **Technicians**: Full access (view, add, edit, delete)
+- **Admins**: Full access (view, add, edit, delete)
+
+### Viewing Customers
+
+1. Navigate to **Customers** from the menu
+
+2. View customer list with:
+   - Company name
+   - Contact person
+   - Phone number
+   - Email address
+   - Location
+   - Equipment count (number of units associated)
+   - Status (Active/Inactive)
+
+3. Click **Edit** to view and modify customer details
+
+### Adding a New Customer
+
+1. Click **Add Customer** button
+
+2. Fill in customer information:
+
+   **Company Information:**
+   - Company Name * (required)
+   - Contact Person (primary contact at the company)
+
+   **Contact Details:**
+   - Phone number
+   - Email address
+
+   **Location:**
+   - Location/Site Name (e.g., "Main Building", "Warehouse #2")
+   - Street Address
+   - City
+   - State (select from dropdown)
+   - ZIP Code
+
+   **Additional Information:**
+   - Notes field for any additional details
+
+3. Click **Save Customer**
+
+4. Customer is now available for equipment assignment
+
+### Editing a Customer
+
+1. Click **Edit** next to the customer
+
+2. Update any information:
+   - Company details
+   - Contact information
+   - Location
+   - Notes
+   - Status (Active/Inactive)
+
+3. View associated equipment:
+   - Shows list of equipment linked to this customer
+   - Click equipment names to view details
+
+4. Click **Save Customer**
+
+### Linking Equipment to Customers
+
+**When Adding New Equipment:**
+
+1. Navigate to **Equipment** → **Add New Equipment**
+
+2. In the equipment form, find the **Customer/Company** dropdown
+
+3. Select the customer from the list (or leave blank if not applicable)
+
+4. Complete the rest of the equipment details
+
+5. Click **Save Equipment**
+
+**When Editing Existing Equipment:**
+
+1. Navigate to the equipment detail page
+
+2. Click **Edit**
+
+3. Select or change the customer in the **Customer/Company** dropdown
+
+4. Click **Update Equipment**
+
+### Customer Status
+
+**Active:**
+- Customer is currently using your services
+- Equipment is being monitored
+- Appears in customer list by default
+
+**Inactive:**
+- Former customer or inactive account
+- Equipment may be retired
+- Retained for historical records
+
+### Deleting a Customer
+
+**Important**: Only delete customers if they have no associated equipment and no historical data.
+
+1. Click **Delete** next to the customer
+
+2. Confirm deletion
+
+3. Customer record is removed from the system
+
+**Best Practice:**
+- Use "Inactive" status instead of deleting
+- Keeps historical records intact
+- Better for audit trail and reporting
+
+### Customer Use Cases
+
+**Scenario 1: Multi-Site Customer**
+
+*ABC Restaurant Group has 5 locations, each with multiple refrigeration units*
+
+1. Create customer: "ABC Restaurant Group"
+2. Add equipment for each location:
+   - Set Customer to "ABC Restaurant Group"
+   - Use Location field to specify which restaurant (e.g., "Downtown Location", "Airport Location")
+3. View all ABC equipment from the customer record
+4. Generate reports filtered by this customer
+
+**Scenario 2: Property Management**
+
+*Managing HVAC for multiple building owners*
+
+1. Create separate customer for each building owner
+2. Link all equipment in their buildings to their customer record
+3. Generate customer-specific compliance reports
+4. Track service history per customer for billing
+
+**Scenario 3: Commercial Complex**
+
+*Large shopping center with multiple tenants*
+
+1. Create customer: "Westfield Shopping Center"
+2. Contact: Property Manager details
+3. Add all HVAC equipment with location details (store numbers)
+4. Track all equipment under one customer account
+
+### Customer Reports
+
+**View Equipment by Customer:**
+1. Go to customer detail page
+2. See all associated equipment
+3. View total equipment count
+4. Check compliance status across all units
+
+**Generate Customer-Specific Reports:**
+1. Navigate to **Reports**
+2. Select report type
+3. Filter by customer
+4. Generate for billing or compliance purposes
+
+### Best Practices for Customer Management
+
+**Data Entry:**
+- Use consistent naming (e.g., "ABC Corp" not "ABC Corporation" elsewhere)
+- Keep contact information current
+- Update status when customers become inactive
+- Use notes field for special instructions or billing details
+
+**Organization:**
+- Create customer before adding equipment
+- Link all equipment to customers for better tracking
+- Use location field to differentiate multiple sites
+- Keep email addresses current for automated reports
+
+**For Service Technicians:**
+- Check customer information before service calls
+- Verify contact person and phone number
+- Update notes if you learn new information
+- Report any changes to office staff
+
+**For Compliance Managers:**
+- Review customer records quarterly
+- Ensure all equipment is properly assigned
+- Generate customer-specific compliance reports
+- Keep customer contacts updated for alert notifications
 
 ---
 

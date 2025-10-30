@@ -62,6 +62,11 @@
             <li><a href="{{ url_for('technician_list') }}" {% if 'technician' in request.endpoint %}class="active"{% endif %}>Technicians</a></li>
             {% endif %}
 
+            <!-- Customers - Manager, Technician, Admin -->
+            {% if current_user and current_user.role in ['compliance_manager', 'technician', 'admin'] %}
+            <li><a href="{{ url_for('customer_list') }}" {% if 'customer' in request.endpoint %}class="active"{% endif %}>Customers</a></li>
+            {% endif %}
+
             <!-- Logs - Technician only -->
             {% if current_user and current_user.role == 'technician' %}
             <li><a href="{{ url_for('service_log_list') }}" {% if 'service_log' in request.endpoint %}class="active"{% endif %}>Service Logs</a></li>
@@ -84,9 +89,9 @@
             <li><a href="{{ url_for('document_list') }}" {% if 'document' in request.endpoint %}class="active"{% endif %}>Documents</a></li>
             {% endif %}
 
-            <!-- Analytics/Reports - Manager only -->
+            <!-- Reports - Manager only -->
             {% if current_user and current_user.role in ['compliance_manager', 'admin'] %}
-            <li><a href="{{ url_for('reports') }}" {% if 'reports' in request.endpoint %}class="active"{% endif %}>Analytics</a></li>
+            <li><a href="{{ url_for('reports') }}" {% if 'reports' in request.endpoint %}class="active"{% endif %}>Reports</a></li>
             {% endif %}
 
             <!-- Settings - Manager & Admin -->
@@ -111,7 +116,6 @@
             </li>
             {% endif %}
 
-            <li class="nav-section">Account:</li>
             {% if is_authenticated %}
             <li><a href="{{ url_for('logout') }}" class="nav-btn-logout">🚪 Logout</a></li>
             {% else %}
